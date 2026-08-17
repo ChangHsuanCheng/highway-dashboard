@@ -486,7 +486,7 @@
             const prevExit = activeData.filter(i => (direction === 'S' ? i.km <= currentKM : i.km >= currentKM)).pop() || activeData[0];
 
             // 組合「剛過站 1 站 + 前方 3 站」（共 4 站，遠在最上，近在最下）
-            const displayUpcoming = [prevExit, ...upcoming.slice(0, 8)];
+            const displayUpcoming = [prevExit, ...upcoming.slice(0, 10)];
             const windowNodes = [...displayUpcoming].sort((a, b) => {
                 return direction === "S" ? b.km - a.km : a.km - b.km;
             });
