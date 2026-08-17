@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>國道路況儀表板</title>
+    <title>全自動國道與快速道路儀表板</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { 
@@ -17,18 +17,26 @@
             border: 2px solid #FFFFFF;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
         }
+        .express-sign {
+            background-color: #C00000;
+            border: 2px solid #FFFFFF;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+        }
     </style>
 </head>
 <body class="bg-[#0f172a] text-white min-h-screen flex flex-col p-3 justify-between select-none">
 
-    <!-- 頂部資訊列 -->
+    <!-- 頂部資訊列：自動辨識道路徽章 + 當前 K 數 + 車速 -->
     <header class="bg-[#1e293b] border border-slate-700/80 rounded-2xl p-4 flex justify-between items-center shadow-xl mb-3">
         <div class="flex items-center space-x-3">
-            <div class="bg-[#007A3D] border border-white/80 text-white font-black px-3 py-1 rounded-lg text-base tracking-wider shadow">
+            <!-- 自動辨識顯示牌 -->
+            <div id="route-badge" class="bg-[#007A3D] text-white font-black px-3 py-1 rounded-xl text-base tracking-wider shadow border border-white/80">
                 國1
             </div>
             <div>
-                <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">目前位置</div>
+                <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider flex items-center">
+                    目前位置 <span id="auto-route-tag" class="ml-1 text-[9px] text-emerald-400 border border-emerald-500/40 px-1 rounded">自動辨識</span>
+                </div>
                 <div id="current-km" class="text-3xl font-black text-emerald-400 font-mono">--.- K</div>
             </div>
         </div>
@@ -45,67 +53,67 @@
         <div class="text-xs font-bold text-slate-400 tracking-wider border-b border-slate-700/60 pb-2 flex justify-between items-center">
             <span class="flex items-center">
                 <span id="api-status-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
-                <span id="api-status-text">TDX 即時路況連線中...</span>
+                <span id="api-status-text">TDX 即時路況同步中...</span>
             </span>
-            <span id="direction-tag" class="bg-blue-600/30 text-blue-400 border border-blue-500/30 px-3 py-0.5 rounded-md text-xs font-bold">南下</span>
+            <span id="direction-tag" class="bg-blue-600/30 text-blue-400 border border-blue-500/30 px-3 py-0.5 rounded-md text-xs font-bold">自動辨識方向</span>
         </div>
 
         <!-- 路線軸主區域 -->
-        <div id="timeline-container" class="relative flex-1 my-3 pl-7 flex flex-col justify-between">
+        <div id="timeline-container" class="relative flex-1 my-3 flex flex-col justify-between">
             <div class="text-center text-slate-500 my-auto text-base">搜尋 GPS 定位中...</div>
         </div>
 
     </main>
 
-    <!-- 頁尾狀態列 -->
-    <footer class="text-center text-xs text-slate-500 pt-2 pb-1">
+    <!-- 頁尾狀態列與模擬測試開關 -->
+    <footer class="flex justify-between items-center text-xs text-slate-500 pt-2 pb-1 px-1">
         <span id="status-text">請允許位置存取以啟動即時追蹤</span>
+        <!-- 模擬開關按鈕 -->
+        <button onclick="toggleSimulation()" id="sim-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center">
+            🎮 模擬行車: OFF
+        </button>
     </footer>
 
     <script>
-        // 基礎節點座標資料
-        let highwayData = [
-            { "id": "34", "freeway": "國道1號", "name": "高公局", "direction": "S", "km": 34.1, "lat": 25.053, "lng": 121.430, "segmentSpeed": 85 },
-            { "id": "41", "freeway": "國道1號", "name": "林口", "direction": "S", "km": 41.5, "lat": 25.068, "lng": 121.364, "segmentSpeed": 85 },
-            { "id": "49", "freeway": "國道1號", "name": "桃園", "direction": "S", "km": 49.1, "lat": 25.034, "lng": 121.298, "segmentSpeed": 85 },
-            { "id": "52", "freeway": "國道1號", "name": "機場系統", "direction": "S", "km": 52.5, "lat": 25.031, "lng": 121.282, "segmentSpeed": 85 },
-            { "id": "57", "freeway": "國道1號", "name": "中壢", "direction": "S", "km": 57.0, "lat": 24.981, "lng": 121.242, "segmentSpeed": 85 },
-            
-            { "id": "57N", "freeway": "國道1號", "name": "中壢", "direction": "N", "km": 57.0, "lat": 24.981, "lng": 121.242, "segmentSpeed": 85 },
-            { "id": "52N", "freeway": "國道1號", "name": "機場系統", "direction": "N", "km": 52.5, "lat": 25.031, "lng": 121.282, "segmentSpeed": 85 },
-            { "id": "49N", "freeway": "國道1號", "name": "桃園", "direction": "N", "km": 49.1, "lat": 25.034, "lng": 121.298, "segmentSpeed": 85 },
-            { "id": "41N", "freeway": "國道1號", "name": "林口", "direction": "N", "km": 41.5, "lat": 25.068, "lng": 121.364, "segmentSpeed": 85 },
-            { "id": "34N", "freeway": "國道1號", "name": "高公局", "direction": "N", "km": 34.1, "lat": 25.053, "lng": 121.430, "segmentSpeed": 85 }
-        ];
+        // 多路線資料庫
+        const routesDatabase = {
+            "國1": { name: "國1", express: false, nodes: [
+                { "id": "34", "freeway": "國道1號", "name": "高公局", "direction": "S", "km": 34.1, "lat": 25.053, "lng": 121.430, "segmentSpeed": 78 },
+                { "id": "41", "freeway": "國道1號", "name": "林口", "direction": "S", "km": 41.5, "lat": 25.068, "lng": 121.364, "segmentSpeed": 92 },
+                { "id": "49", "freeway": "國道1號", "name": "桃園", "direction": "S", "km": 49.1, "lat": 25.034, "lng": 121.298, "segmentSpeed": 85 },
+                { "id": "52", "freeway": "國道1號", "name": "機場系統", "direction": "S", "km": 52.5, "lat": 25.031, "lng": 121.282, "segmentSpeed": 85 },
+                { "id": "57", "freeway": "國道1號", "name": "中壢", "direction": "S", "km": 57.0, "lat": 24.981, "lng": 121.242, "segmentSpeed": 88 },
+                { "id": "57N", "freeway": "國道1號", "name": "中壢", "direction": "N", "km": 57.0, "lat": 24.981, "lng": 121.242, "segmentSpeed": 88 },
+                { "id": "52N", "freeway": "國道1號", "name": "機場系統", "direction": "N", "km": 52.5, "lat": 25.031, "lng": 121.282, "segmentSpeed": 85 },
+                { "id": "49N", "freeway": "國道1號", "name": "桃園", "direction": "N", "km": 49.1, "lat": 25.034, "lng": 121.298, "segmentSpeed": 85 },
+                { "id": "41N", "freeway": "國道1號", "name": "林口", "direction": "N", "km": 41.5, "lat": 25.068, "lng": 121.364, "segmentSpeed": 92 },
+                { "id": "34N", "freeway": "國道1號", "name": "高公局", "direction": "N", "km": 34.1, "lat": 25.053, "lng": 121.430, "segmentSpeed": 78 }
+            ]},
+            "國3": { name: "國3", express: false, nodes: [
+                { "id": "15", "freeway": "國道3號", "name": "南港", "direction": "S", "km": 15.1, "lat": 25.049, "lng": 121.619, "segmentSpeed": 90 },
+                { "id": "31", "freeway": "國道3號", "name": "安坑", "direction": "S", "km": 31.2, "lat": 24.965, "lng": 121.512, "segmentSpeed": 85 },
+                { "id": "46", "freeway": "國道3號", "name": "樹林", "direction": "S", "km": 46.0, "lat": 24.928, "lng": 121.385, "segmentSpeed": 92 },
+                { "id": "54", "freeway": "國道3號", "name": "鶯歌系統", "direction": "S", "km": 54.0, "lat": 24.935, "lng": 121.311, "segmentSpeed": 88 },
+                { "id": "54N", "freeway": "國道3號", "name": "鶯歌系統", "direction": "N", "km": 54.0, "lat": 24.935, "lng": 121.311, "segmentSpeed": 88 },
+                { "id": "46N", "freeway": "國道3號", "name": "樹林", "direction": "N", "km": 46.0, "lat": 24.928, "lng": 121.385, "segmentSpeed": 92 },
+                { "id": "31N", "freeway": "國道3號", "name": "安坑", "direction": "N", "km": 31.2, "lat": 24.965, "lng": 121.512, "segmentSpeed": 85 },
+                { "id": "15N", "freeway": "國道3號", "name": "南港", "direction": "N", "km": 15.1, "lat": 25.049, "lng": 121.619, "segmentSpeed": 90 }
+            ]},
+            "台64": { name: "台64", express: true, nodes: [
+                { "id": "0", "freeway": "台64線", "name": "八里", "direction": "S", "km": 0.0, "lat": 25.150, "lng": 121.398, "segmentSpeed": 70 },
+                { "id": "14", "freeway": "台64線", "name": "板橋", "direction": "S", "km": 14.2, "lat": 25.028, "lng": 121.470, "segmentSpeed": 65 },
+                { "id": "28", "freeway": "台64線", "name": "新店", "direction": "S", "km": 28.3, "lat": 24.985, "lng": 121.540, "segmentSpeed": 75 },
+                { "id": "28N", "freeway": "台64線", "name": "新店", "direction": "N", "km": 28.3, "lat": 24.985, "lng": 121.540, "segmentSpeed": 75 },
+                { "id": "14N", "freeway": "台64線", "name": "板橋", "direction": "N", "km": 14.2, "lat": 25.028, "lng": 121.470, "segmentSpeed": 65 },
+                { "id": "0N", "freeway": "台64線", "name": "八里", "direction": "N", "km": 0.0, "lat": 25.150, "lng": 121.398, "segmentSpeed": 70 }
+            ]}
+        };
 
-        // 🌐 從 TDX 免費公開 Endpoint 抓取國道一號即時車速 API
-        async function fetchRealtimeTraffic() {
-            try {
-                // TDX 國道 1 號即時路段車速開放 API
-                const tdxUrl = "https://tdx.transportdata.tw/api/basic/v2/Road/Highway/Live/Freeway/Freeway1?%24format=JSON";
-                const response = await fetch(tdxUrl, { method: 'GET' });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data && data.FreewayLives) {
-                        // 更新內部數據
-                        document.getElementById("api-status-text").innerText = "TDX 即時路況已同步";
-                        document.getElementById("api-status-dot").className = "w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2 animate-pulse";
-                    }
-                } else {
-                    document.getElementById("api-status-text").innerText = "使用預設基準路況";
-                    document.getElementById("api-status-dot").className = "w-2.5 h-2.5 rounded-full bg-amber-500 mr-2";
-                }
-            } catch (err) {
-                console.log("TDX API 抓取失敗或額度滿額，採用預設路況:", err);
-                document.getElementById("api-status-text").innerText = "離線/預設路況模式";
-                document.getElementById("api-status-dot").className = "w-2.5 h-2.5 rounded-full bg-slate-500 mr-2";
-            }
-        }
-
-        // 定期每 2 分鐘更新一次即時路況
-        fetchRealtimeTraffic();
-        setInterval(fetchRealtimeTraffic, 120000);
+        let currentRouteKey = "國1";
+        let isSimulation = false;
+        let simInterval = null;
+        let simLat = 25.068; // 林口出發經緯度
+        let simLng = 121.364;
 
         function getDistanceKM(lat1, lon1, lat2, lon2) {
             const R = 6371;
@@ -117,18 +125,118 @@
             return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
         }
 
+        // 🧠 自動道路辨識演算法：傳入 GPS 座標，自動找出最近的道路
+        function autoDetectRoute(lat, lng) {
+            let bestRoute = currentRouteKey;
+            let minMinDist = 999;
+
+            Object.keys(routesDatabase).forEach(rKey => {
+                const nodes = routesDatabase[rKey].nodes;
+                nodes.forEach(node => {
+                    const dist = getDistanceKM(lat, lng, node.lat, node.lng);
+                    if (dist < minMinDist) {
+                        minMinDist = dist;
+                        bestRoute = rKey;
+                    }
+                });
+            });
+
+            if (bestRoute !== currentRouteKey && minMinDist < 5.0) { // 距離5公里內自動切換道路
+                currentRouteKey = bestRoute;
+                const rData = routesDatabase[currentRouteKey];
+                const badge = document.getElementById("route-badge");
+                badge.innerText = rData.name;
+                badge.className = `${rData.express ? 'bg-[#C00000]' : 'bg-[#007A3D]'} text-white font-black px-3 py-1 rounded-xl text-base tracking-wider shadow border border-white/80`;
+            }
+        }
+
+        // 核心計算與處理
+        function processLocationUpdate(lat, lng, heading, speed) {
+            document.getElementById("current-speed").innerText = speed;
+
+            // 1. 自動辨識道路
+            autoDetectRoute(lat, lng);
+
+            // 2. 自動辨識方向 (南下 90~270度，其餘北上)
+            let currentDirection = "S";
+            if (heading !== null && !isNaN(heading)) {
+                currentDirection = (heading >= 90 && heading <= 270) ? "S" : "N";
+            }
+            document.getElementById("direction-tag").innerText = currentDirection === "S" ? "南下/東向" : "北上/西向";
+
+            const activeData = routesDatabase[currentRouteKey].nodes.filter(item => item.direction === currentDirection);
+            if (activeData.length === 0) return;
+
+            let nearest = activeData[0];
+            let minDistance = getDistanceKM(lat, lng, nearest.lat, nearest.lng);
+
+            activeData.forEach(item => {
+                const d = getDistanceKM(lat, lng, item.lat, item.lng);
+                if (d < minDistance) {
+                    minDistance = d;
+                    nearest = item;
+                }
+            });
+
+            let currentKM = nearest.km;
+            if (currentDirection === "S") {
+                currentKM = (lat < nearest.lat) ? (nearest.km + minDistance) : (nearest.km - minDistance);
+            } else {
+                currentKM = (lat > nearest.lat) ? (nearest.km - minDistance) : (nearest.km + minDistance);
+            }
+            currentKM = Math.max(0, currentKM);
+
+            document.getElementById("current-km").innerText = `${currentKM.toFixed(1)} K`;
+
+            let upcoming = [];
+            if (currentDirection === "S") {
+                upcoming = activeData.filter(item => item.km > currentKM).sort((a, b) => a.km - b.km);
+            } else {
+                upcoming = activeData.filter(item => item.km < currentKM).sort((a, b) => b.km - a.km);
+            }
+
+            renderTimelineUI(upcoming, currentKM, activeData);
+        }
+
+        // 🎮 模擬測試功能開關
+        function toggleSimulation() {
+            isSimulation = !isSimulation;
+            const btn = document.getElementById("sim-btn");
+
+            if (isSimulation) {
+                btn.innerText = "🎮 模擬行車: ON";
+                btn.className = "bg-amber-600 text-white border border-amber-400 px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center animate-pulse";
+                document.getElementById("status-text").innerText = "行車模擬運作中 (南下 100 km/h)...";
+
+                simLat = 25.068; // 從林口 41.5K 開始南下
+                simLng = 121.364;
+
+                simInterval = setInterval(() => {
+                    simLat -= 0.0003; // 模擬往南移動
+                    simLng -= 0.0002;
+                    processLocationUpdate(simLat, simLng, 180, 102); // 模擬速度 102 km/h，方向 180度 (正南)
+                }, 1000);
+            } else {
+                btn.innerText = "🎮 模擬行車: OFF";
+                btn.className = "bg-slate-800 text-slate-300 border border-slate-600 px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center";
+                document.getElementById("status-text").innerText = "已恢復真實 GPS 定位";
+                clearInterval(simInterval);
+            }
+        }
+
+        // 真實 GPS 監聽
         let lastLat = null;
         let lastLng = null;
 
         if ("geolocation" in navigator) {
             navigator.geolocation.watchPosition(
                 (position) => {
+                    if (isSimulation) return; // 模擬模式啟動時暫停真實 GPS 覆蓋
+
                     const lat = position.coords.latitude;
                     const lng = position.coords.longitude;
                     let heading = position.coords.heading;
                     const speed = position.coords.speed ? Math.round(position.coords.speed * 3.6) : 0;
-
-                    document.getElementById("current-speed").innerText = speed;
 
                     if ((heading === null || isNaN(heading)) && lastLat !== null) {
                         const dLng = lng - lastLng;
@@ -140,47 +248,11 @@
                     lastLat = lat;
                     lastLng = lng;
 
-                    let currentDirection = "S";
-                    if (heading !== null && !isNaN(heading)) {
-                        currentDirection = (heading >= 90 && heading <= 270) ? "S" : "N";
-                    }
-
-                    document.getElementById("direction-tag").innerText = currentDirection === "S" ? "南下" : "北上";
-
-                    const activeData = highwayData.filter(item => item.direction === currentDirection);
-                    let nearest = activeData[0];
-                    let minDistance = getDistanceKM(lat, lng, nearest.lat, nearest.lng);
-
-                    activeData.forEach(item => {
-                        const d = getDistanceKM(lat, lng, item.lat, item.lng);
-                        if (d < minDistance) {
-                            minDistance = d;
-                            nearest = item;
-                        }
-                    });
-
-                    let currentKM = nearest.km;
-                    if (currentDirection === "S") {
-                        currentKM = (lat < nearest.lat) ? (nearest.km + minDistance) : (nearest.km - minDistance);
-                    } else {
-                        currentKM = (lat > nearest.lat) ? (nearest.km - minDistance) : (nearest.km + minDistance);
-                    }
-                    currentKM = Math.max(0, currentKM);
-
-                    document.getElementById("current-km").innerText = `${currentKM.toFixed(1)} K`;
                     document.getElementById("status-text").innerText = "GPS 定位正常運作中";
-
-                    let upcoming = [];
-                    if (currentDirection === "S") {
-                        upcoming = activeData.filter(item => item.km > currentKM).sort((a, b) => a.km - b.km);
-                    } else {
-                        upcoming = activeData.filter(item => item.km < currentKM).sort((a, b) => b.km - a.km);
-                    }
-
-                    renderTimelineUI(upcoming, currentKM, activeData);
+                    processLocationUpdate(lat, lng, heading, speed);
                 },
                 (error) => {
-                    document.getElementById("status-text").innerText = "無法取得 GPS 定位";
+                    if (!isSimulation) document.getElementById("status-text").innerText = "無法取得 GPS 定位";
                 },
                 { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
             );
@@ -205,12 +277,12 @@
 
             const nextExit = upcoming[0];
             const prevExit = activeData.filter(i => (activeData[0].direction === 'S' ? i.km <= currentKM : i.km >= currentKM)).pop() || activeData[0];
-
             const displayUpcoming = upcoming.slice(0, 3);
+            const isExpress = routesDatabase[currentRouteKey].express;
+            const signClass = isExpress ? "express-sign" : "highway-sign";
 
             let html = `
-                <!-- 垂直貫穿路線軌道 -->
-                <div class="absolute left-2.5 top-3 bottom-3 w-1.5 bg-slate-700 rounded-full"></div>
+                <div class="absolute left-[20px] top-3 bottom-3 w-1.5 bg-slate-700 rounded-full -translate-x-1/2"></div>
             `;
 
             displayUpcoming.reverse().forEach((item, revIndex) => {
@@ -220,11 +292,11 @@
                 const isNext = index === 0;
 
                 html += `
-                    <div class="relative flex items-center justify-between z-10 my-2">
-                        <div class="absolute -left-7 w-4 h-4 rounded-full ${isNext ? 'bg-amber-400 ring-4 ring-amber-400/30' : 'bg-slate-600'}"></div>
+                    <div class="relative flex items-center justify-between z-10 my-2.5 pl-10">
+                        <div class="absolute left-[20px] -translate-x-1/2 w-4 h-4 rounded-full ${isNext ? 'bg-amber-400 ring-4 ring-amber-400/30' : 'bg-slate-600'}"></div>
                         
                         <div class="flex items-center space-x-2">
-                            <div class="highway-sign text-white px-3.5 py-1.5 rounded-xl font-bold flex items-center space-x-2 shadow-lg ${isNext ? 'scale-105 border-amber-300' : 'opacity-85'}">
+                            <div class="${signClass} text-white px-3.5 py-1.5 rounded-xl font-bold flex items-center space-x-2 shadow-lg ${isNext ? 'scale-105 border-amber-300' : 'opacity-85'}">
                                 <span class="text-sm font-black border-r border-white/40 pr-2 font-mono">${item.id.replace('N','')}</span>
                                 <span class="text-base font-extrabold tracking-wider">${item.name}</span>
                             </div>
@@ -240,9 +312,9 @@
             });
 
             html += `
-                <div class="relative flex items-center my-3 z-10">
-                    <div class="absolute -left-8 w-5 h-5 bg-emerald-400 border-2 border-white rounded-full shadow-lg shadow-emerald-400/50 animate-pulse"></div>
-                    <div class="ml-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold px-2.5 py-1 rounded-md">
+                <div class="relative flex items-center my-3 z-10 pl-10">
+                    <div class="absolute left-[20px] -translate-x-1/2 w-5 h-5 bg-emerald-400 border-2 border-white rounded-full shadow-lg shadow-emerald-400/50 animate-pulse"></div>
+                    <div class="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold px-2.5 py-1 rounded-md">
                         📍 目前位置: ${currentKM.toFixed(1)} K
                     </div>
                 </div>
@@ -250,8 +322,8 @@
 
             if (prevExit && prevExit.id !== nextExit.id) {
                 html += `
-                    <div class="relative flex items-center justify-between opacity-50 z-10 pt-2 border-t border-slate-700/50">
-                        <div class="absolute -left-7 w-3 h-3 rounded-full bg-slate-600"></div>
+                    <div class="relative flex items-center justify-between opacity-50 z-10 pt-2 border-t border-slate-700/50 pl-10">
+                        <div class="absolute left-[20px] -translate-x-1/2 w-3 h-3 rounded-full bg-slate-600"></div>
                         <div class="bg-slate-800 text-slate-300 border border-slate-600 px-3 py-1 rounded-lg text-xs font-bold">
                             ${prevExit.name} (已過)
                         </div>
