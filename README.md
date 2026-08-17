@@ -2,7 +2,7 @@
 
 一個專為駕駛設計、高對比、極簡且具備 PWA 離線/全螢幕支援的國道與快速道路即時路況儀表板。
 
-點擊開啟網頁：[https://ghsuancheng.github.io](https://ghsuancheng.github.io) *(請替換為你的實際 GitHub Pages 網址)*
+點擊開啟網頁：[https://ghsuancheng.github.io]([https://ghsuancheng.github.io](https://changhsuancheng.github.io/highway-dashboard/)) *(請替換為你的實際 GitHub Pages 網址)*
 
 ---
 
