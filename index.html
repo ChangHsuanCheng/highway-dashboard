@@ -57,7 +57,7 @@
             <span id="direction-tag" class="bg-blue-600/30 text-blue-400 border border-blue-500/30 px-3 py-0.5 rounded-md text-xs font-bold">自動辨識方向</span>
         </div>
 
-        <!-- 路線軸主區域 (100% 靠左結構) -->
+        <!-- 路線軸主區域 -->
         <div id="timeline-container" class="relative flex-1 my-3 flex flex-col justify-between overflow-hidden">
             <div class="text-center text-slate-500 my-auto text-base">搜尋 GPS 定位中...</div>
         </div>
@@ -82,8 +82,7 @@
             <div>
                 <label class="text-slate-400 block mb-1">方向</label>
                 <select id="sim-dir" class="bg-slate-900 text-white p-1.5 rounded border border-slate-700 w-full font-bold">
-                    <option value="S">南下/東向</option>
-                    <option value="N">北上/西向</option>
+                    <!-- 動態由 JavaScript 生成對應方向選項 -->
                 </select>
             </div>
             <div>
@@ -102,8 +101,9 @@
     </footer>
 
     <script>
+        // 定義道路屬性：type 為 'NS' (南北向) 或 'EW' (東西向)
         const routesDatabase = {
-            "國1": { name: "國1", express: false, nodes: [
+            "國1": { name: "國1", express: false, type: "NS", nodes: [
                 { "id": "0", "freeway": "國道1號", "name": "基隆端", "direction": "S", "km": 0.0, "lat": 25.128, "lng": 121.740, "segmentSpeed": 85 },
                 { "id": "2", "freeway": "國道1號", "name": "八堵", "direction": "S", "km": 2.6, "lat": 25.108, "lng": 121.729, "segmentSpeed": 85 },
                 { "id": "6", "freeway": "國道1號", "name": "大華系統", "direction": "S", "km": 6.0, "lat": 25.088, "lng": 121.710, "segmentSpeed": 88 },
@@ -165,7 +165,7 @@
                 { "id": "2N", "freeway": "國道1號", "name": "八堵", "direction": "N", "km": 2.6, "lat": 25.108, "lng": 121.729, "segmentSpeed": 85 },
                 { "id": "0N", "freeway": "國道1號", "name": "基隆端", "direction": "N", "km": 0.0, "lat": 25.128, "lng": 121.740, "segmentSpeed": 85 }
             ]},
-            "國3": { name: "國3", express: false, nodes: [
+            "國3": { name: "國3", express: false, type: "NS", nodes: [
                 { "id": "0", "freeway": "國道3號", "name": "基金", "direction": "S", "km": 0.0, "lat": 25.148, "lng": 121.711, "segmentSpeed": 90 },
                 { "id": "15", "freeway": "國道3號", "name": "南港", "direction": "S", "km": 15.1, "lat": 25.049, "lng": 121.619, "segmentSpeed": 90 },
                 { "id": "31", "freeway": "國道3號", "name": "安坑", "direction": "S", "km": 31.2, "lat": 24.965, "lng": 121.512, "segmentSpeed": 85 },
@@ -177,7 +177,7 @@
                 { "id": "15N", "freeway": "國道3號", "name": "南港", "direction": "N", "km": 15.1, "lat": 25.049, "lng": 121.619, "segmentSpeed": 90 },
                 { "id": "0N", "freeway": "國道3號", "name": "基金", "direction": "N", "km": 0.0, "lat": 25.148, "lng": 121.711, "segmentSpeed": 90 }
             ]},
-            "台64": { name: "台64", express: true, nodes: [
+            "台64": { name: "台64", express: true, type: "EW", nodes: [
                 { "id": "0", "freeway": "台64線", "name": "八里", "direction": "S", "km": 0.0, "lat": 25.150, "lng": 121.398, "segmentSpeed": 70 },
                 { "id": "14", "freeway": "台64線", "name": "板橋", "direction": "S", "km": 14.2, "lat": 25.028, "lng": 121.470, "segmentSpeed": 65 },
                 { "id": "28", "freeway": "台64線", "name": "新店", "direction": "S", "km": 28.3, "lat": 24.985, "lng": 121.540, "segmentSpeed": 75 },
@@ -191,6 +191,16 @@
         let isSimulation = false;
         let simInterval = null;
         let simCurrentKM = 41.5;
+
+        // 取得明確對應方向文字（完全拆開標示）
+        function getDirectionText(routeKey, directionCode) {
+            const rType = routesDatabase[routeKey].type;
+            if (rType === "NS") {
+                return directionCode === "S" ? "南下" : "北上";
+            } else {
+                return directionCode === "S" ? "東向" : "西向";
+            }
+        }
 
         async function fetchRealtimeTraffic() {
             try {
@@ -238,6 +248,14 @@
             const badge = document.getElementById("route-badge");
             badge.innerText = rData.name;
             badge.className = `${rData.express ? 'bg-[#C00000]' : 'bg-[#007A3D]'} text-white font-black px-3 py-1 rounded-xl text-base tracking-wider shadow border border-white/80`;
+            
+            // 更新模擬方向選單選項
+            const simDirSelect = document.getElementById("sim-dir");
+            if (rData.type === "NS") {
+                simDirSelect.innerHTML = `<option value="S">南下</option><option value="N">北上</option>`;
+            } else {
+                simDirSelect.innerHTML = `<option value="S">東向</option><option value="N">西向</option>`;
+            }
         }
 
         function autoDetectRoute(lat, lng) {
@@ -263,7 +281,7 @@
 
         function updateUIByKM(currentKM, speed, direction) {
             document.getElementById("current-speed").innerText = speed;
-            document.getElementById("direction-tag").innerText = direction === "S" ? "南下/東向" : "北上/西向";
+            document.getElementById("direction-tag").innerText = getDirectionText(currentRouteKey, direction);
             document.getElementById("current-km").innerText = `${currentKM.toFixed(1)} K`;
 
             const activeData = routesDatabase[currentRouteKey].nodes.filter(item => item.direction === direction);
@@ -362,8 +380,13 @@
             }, 200);
         }
 
-        document.getElementById("sim-route").addEventListener("change", () => { if (isSimulation) startSimulationLoop(); });
+        document.getElementById("sim-route").addEventListener("change", () => {
+            updateRouteBadge(document.getElementById("sim-route").value);
+            if (isSimulation) startSimulationLoop();
+        });
         document.getElementById("sim-dir").addEventListener("change", () => { if (isSimulation) startSimulationLoop(); });
+
+        updateRouteBadge("國1");
 
         let lastLat = null;
         let lastLng = null;
@@ -408,7 +431,7 @@
             }
         }
 
-        // 100% 靠左軸線 (left-5 = 20px) 與向下靠近動畫排版
+        // 重構渲染：均勻分佈前方閘道，並透過區間比例實現真實向下靠近動態
         function renderTimelineUI(upcoming, currentKM, activeData, direction) {
             const container = document.getElementById("timeline-container");
             if (upcoming.length === 0) {
@@ -422,18 +445,21 @@
             const isExpress = routesDatabase[currentRouteKey].express;
             const signClass = isExpress ? "express-sign" : "highway-sign";
 
+            // 計算當前行車於該區間內的進度比例 (0.0 ~ 1.0)
             const segmentTotal = Math.abs(nextExit.km - prevExit.km) || 1;
             const segmentProgress = Math.abs(currentKM - prevExit.km);
             const progressRatio = Math.min(1.0, Math.max(0.0, segmentProgress / segmentTotal));
 
-            const gateYOffset = (1.0 - progressRatio) * 30;
+            // 設定動態垂直向下靠近距離 (全螢幕比例化，例如向下推動 120px)
+            const gateYOffset = progressRatio * 120;
 
             let html = `
                 <!-- 100% 靠左絕對軌道線 (left-5 = 20px) -->
                 <div class="absolute left-5 top-3 bottom-12 w-1.5 bg-slate-700 rounded-full -translate-x-1/2"></div>
 
-                <!-- 頂部前方閘道清單 (隨行車漸進向下靠攏) -->
-                <div class="relative z-10 space-y-4 transition-all duration-300 ease-linear pl-10" style="transform: translateY(${gateYOffset}px);">
+                <!-- 填滿剩餘空間的彈性容器 (解決排版不平均) -->
+                <div class="flex-1 flex flex-col justify-evenly relative z-10 transition-all duration-300 ease-linear pl-10 my-2" 
+                     style="transform: translateY(${gateYOffset}px);">
             `;
 
             displayUpcoming.reverse().forEach((item, revIndex) => {
@@ -456,7 +482,7 @@
                             ${getSpeedTag(item.segmentSpeed || 85)}
                         </div>
 
-                        <!-- 剩餘距離 -->
+                        <!-- 剩餘距離與預估時間 -->
                         <div class="text-right">
                             <div class="text-lg font-black ${isNext ? 'text-amber-400 font-mono' : 'text-slate-200 font-mono'}">${dist} <span class="text-xs text-slate-400">km</span></div>
                             <div class="text-xs font-bold text-slate-400">約 ${estTime} 分</div>
@@ -467,12 +493,14 @@
 
             html += `</div>`;
 
-            // 最下方：固定「📍 目前位置」駕駛視角標籤 (靠左對齊)
+            // 最下方：固定「📍 目前位置」駕駛視角標籤 (完全拆開方向標示)
+            const dirLabel = getDirectionText(currentRouteKey, direction);
+
             html += `
                 <div class="relative z-20 mt-auto pt-3 border-t border-slate-700/80 flex flex-col items-start pl-10 justify-center">
                     <div class="absolute left-5 -translate-x-1/2 -top-2.5 w-5 h-5 bg-emerald-400 border-2 border-white rounded-full shadow-lg shadow-emerald-400/50 animate-pulse"></div>
                     <div class="bg-emerald-950/95 border border-emerald-500/80 text-emerald-300 px-3.5 py-1.5 rounded-xl shadow-2xl leading-tight">
-                        <div class="text-emerald-300 font-black text-sm tracking-wide">📍 目前位置: ${currentKM.toFixed(2)} K</div>
+                        <div class="text-emerald-300 font-black text-sm tracking-wide">📍 目前位置: ${currentKM.toFixed(2)} K (${dirLabel})</div>
                         <div class="text-[11px] text-emerald-400/90 font-bold mt-0.5">距下個出口 (${nextExit.name}) ${Math.abs(nextExit.km - currentKM).toFixed(2)} km</div>
                     </div>
                 </div>
