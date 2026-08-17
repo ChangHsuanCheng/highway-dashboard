@@ -23,7 +23,7 @@
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
         }
         .gate-row {
-            height: 42px; /* 精算 9 卡片視窗列高 */
+            height: 42px; /* 9 卡片視窗標準列高 */
         }
     </style>
 </head>
@@ -77,7 +77,7 @@
     <div id="sim-panel" class="hidden my-2 bg-slate-800 border border-amber-500/50 rounded-xl p-3 text-xs space-y-2 shrink-0">
         <div class="font-bold text-amber-400 flex justify-between items-center">
             <span>⚙️ 模擬參數設定</span>
-            <span class="text-[10px] text-slate-400">9 卡片淡入淡出佇列模式</span>
+            <span class="text-[10px] text-slate-400">真·連續里程平滑滾動模式</span>
         </div>
         <div class="grid grid-cols-3 gap-2">
             <div>
@@ -109,11 +109,10 @@
 
     <script>
         // ========================================================
-        // ⚙️ 對齊調校參數開關
+        // ⚙️ 調校參數開關
         // ========================================================
-        const CARD_HEIGHT_PX = 42;      // 容納 9 個卡片的精算單高 (px)
-        const WINDOW_SIZE = 9;          // 介面保持顯示 9 個閘道
-        const LINE_OFFSET_PX = 0;       // 綠線觸線壓線微調 (px)
+        const CARD_HEIGHT_PX = 42;      // 容納 9 個卡片之標準行高 (px)
+        const LINE_OFFSET_PX = 0;       // 觸碰綠線歸零時的微調像素 (px)
         // ========================================================
 
         const routesDatabase = {
@@ -205,7 +204,8 @@
         let isSimulation = false;
         let simInterval = null;
         let simCurrentKM = 6.0;
-        let lastBuiltWindowKey = null;
+        let lastBuiltRouteKey = null;
+        let lastBuiltDirection = null;
 
         function getDirectionText(routeKey, directionCode) {
             const rType = routesDatabase[routeKey].type;
@@ -268,7 +268,7 @@
             } else {
                 simDirSelect.innerHTML = `<option value="S">東向</option><option value="N">西向</option>`;
             }
-            lastBuiltWindowKey = null;
+            lastBuiltRouteKey = null;
         }
 
         function autoDetectRoute(lat, lng) {
@@ -391,7 +391,7 @@
             if (isSimulation) startSimulationLoop();
         });
         document.getElementById("sim-dir").addEventListener("change", () => { 
-            lastBuiltWindowKey = null;
+            lastBuiltRouteKey = null;
             if (isSimulation) startSimulationLoop(); 
         });
 
@@ -440,18 +440,16 @@
             }
         }
 
-        // 構建視窗 DOM（包含最上方剛進場的新卡片淡入與最下方過站卡片淡出）
-        function buildWindowDOM(windowNodes) {
+        // 全線 DOM 靜態構建（永久保留於 DOM，絕不重刷）
+        function buildFullRouteDOM(activeNodes) {
             const track = document.getElementById("scroll-track");
             const isExpress = routesDatabase[currentRouteKey].express;
             const signClass = isExpress ? "express-sign" : "highway-sign";
 
             let html = "";
-            windowNodes.forEach((item, index) => {
-                const isTopFadeIn = index === 0; // 最上方新進場的卡片淡入
-
+            activeNodes.forEach(item => {
                 html += `
-                    <div id="gate-card-${item.id}" class="gate-row grid grid-cols-[36px_1fr_auto] items-center relative transition-all duration-300 ${isTopFadeIn ? 'opacity-0' : 'opacity-100'}">
+                    <div id="gate-card-${item.id}" class="gate-row grid grid-cols-[36px_1fr_auto] items-center relative transition-opacity duration-200">
                         <div class="relative h-full flex items-center justify-center">
                             <div id="gate-dot-${item.id}" class="w-4 h-4 rounded-full z-10 bg-slate-600"></div>
                         </div>
@@ -474,8 +472,17 @@
             track.innerHTML = html;
         }
 
-        // 9 卡片淡入淡出連續滾動引擎
+        // 終極真·無縫連續絕對裡程滾動引擎
         function renderTimelineUI(currentKM, activeData, direction) {
+            if (lastBuiltRouteKey !== currentRouteKey || lastBuiltDirection !== direction) {
+                const sortedNodes = [...activeData].sort((a, b) => {
+                    return direction === "S" ? b.km - a.km : a.km - b.km;
+                });
+                buildFullRouteDOM(sortedNodes);
+                lastBuiltRouteKey = currentRouteKey;
+                lastBuiltDirection = direction;
+            }
+
             let upcoming = [];
             if (direction === "S") {
                 upcoming = activeData.filter(item => item.km > currentKM).sort((a, b) => a.km - b.km);
@@ -488,30 +495,26 @@
             const nextExit = upcoming[0];
             const prevExit = activeData.filter(i => (direction === 'S' ? i.km <= currentKM : i.km >= currentKM)).pop() || activeData[0];
 
-            // 保持 9 個閘道：[頂部剛進場 1 個 + 中間未過站 7 個 + 最底端 Next Exit]
-            const displayUpcoming = upcoming.slice(0, WINDOW_SIZE - 1);
-            const windowNodes = [prevExit, ...displayUpcoming].sort((a, b) => {
-                return direction === "S" ? b.km - a.km : a.km - b.km;
-            });
-
-            const currentWindowKey = windowNodes.map(n => n.id).join(',');
-
-            // 切換視窗組別時重建 DOM (極低頻率，毫秒過渡)
-            if (lastBuiltWindowKey !== currentWindowKey) {
-                buildWindowDOM(windowNodes);
-                lastBuiltWindowKey = currentWindowKey;
-            }
-
-            // 區間推進比例 (0.0 -> 1.0)
             const segmentTotal = Math.abs(nextExit.km - prevExit.km) || 1;
             const segmentProgress = Math.abs(currentKM - prevExit.km);
             const progressRatio = Math.min(1.0, Math.max(0.0, segmentProgress / segmentTotal));
 
-            // 精算 Y 軸動態推進：倒數至 0.00km (progressRatio=1.0) 時，Next Exit 精準壓貼綠線
-            const cardHeight = CARD_HEIGHT_PX;
-            const targetY = (progressRatio * cardHeight) + LINE_OFFSET_PX;
+            const sortedNodes = [...activeData].sort((a, b) => {
+                return direction === "S" ? b.km - a.km : a.km - b.km;
+            });
 
-            windowNodes.forEach((item, index) => {
+            const nextIndex = sortedNodes.findIndex(n => n.id === nextExit.id);
+            const totalNodes = sortedNodes.length;
+
+            // 🟢 真·平滑連貫幾何位移：採用浮點數浮動 (nextIndex + progressRatio)，數值永遠連貫不跳格！
+            const cardHeight = CARD_HEIGHT_PX;
+            const continuousOffset = (totalNodes - 1 - nextIndex) + progressRatio;
+            const targetY = (continuousOffset * cardHeight) + LINE_OFFSET_PX;
+
+            // 9 卡片視窗範圍（前 7 個 + 當前 1 個 Next Exit + 剛過 1 個）
+            const VISIBLE_WINDOW_SIZE = 9;
+
+            sortedNodes.forEach((item, index) => {
                 const cardEl = document.getElementById(`gate-card-${item.id}`);
                 const distEl = document.getElementById(`gate-dist-${item.id}`);
                 const timeEl = document.getElementById(`gate-time-${item.id}`);
@@ -526,29 +529,35 @@
                 timeEl.innerText = `約 ${estTime} 分`;
 
                 const isNext = item.id === nextExit.id;
-                const isPassed = (direction === 'S' ? item.km <= currentKM : item.km >= currentKM) && !isNext;
+                const distanceIndex = nextIndex - index; // 距離 Next Exit 的相對卡片索引差
 
+                // 動態極致 Fade-In & Fade-Out
                 if (isNext) {
                     dotEl.className = "w-4 h-4 rounded-full z-10 bg-amber-400 ring-4 ring-amber-400/30";
                     distEl.className = "text-base font-black text-amber-400 font-mono";
                     cardEl.style.opacity = "1";
-                } else if (isPassed) {
+                } else if (distanceIndex === -1) {
+                    // 剛過站滑出綠線：隨推進平滑淡出至 0
                     dotEl.className = "w-4 h-4 rounded-full z-10 bg-slate-700";
                     distEl.className = "text-base font-black text-slate-500 font-mono";
-                    cardEl.style.opacity = "0.15"; // 過站向下滑出綠線平滑淡出
-                } else {
+                    cardEl.style.opacity = `${(1.0 - progressRatio) * 0.4}`;
+                } else if (distanceIndex === (VISIBLE_WINDOW_SIZE - 2)) {
+                    // 頂部剛滑入視窗：隨推進平滑淡入至 1
                     dotEl.className = "w-4 h-4 rounded-full z-10 bg-slate-600";
                     distEl.className = "text-base font-black text-slate-200 font-mono";
-                    // 頂部新進入的卡片隨推進平滑淡入
-                    if (index === 0) {
-                        cardEl.style.opacity = `${progressRatio}`;
-                    } else {
-                        cardEl.style.opacity = "1";
-                    }
+                    cardEl.style.opacity = `${progressRatio}`;
+                } else if (distanceIndex > 0 && distanceIndex < (VISIBLE_WINDOW_SIZE - 2)) {
+                    // 視窗中央正常顯示
+                    dotEl.className = "w-4 h-4 rounded-full z-10 bg-slate-600";
+                    distEl.className = "text-base font-black text-slate-200 font-mono";
+                    cardEl.style.opacity = "1";
+                } else {
+                    // 視窗外部全隱藏（防止干擾）
+                    cardEl.style.opacity = "0";
                 }
             });
 
-            // 連續 Transform 物理推進
+            // 連續 Transform 本體位移
             const track = document.getElementById("scroll-track");
             track.style.transform = `translateY(${targetY}px)`;
 
