@@ -283,7 +283,6 @@
             const activeData = routesDatabase[currentRouteKey].nodes.filter(item => item.direction === direction);
             if (activeData.length === 0) return;
 
-            // 嚴格過濾未過之前方閘道 (避免過站重覆出現舊站)
             let upcoming = [];
             if (direction === "S") {
                 upcoming = activeData.filter(item => item.km > currentKM).sort((a, b) => a.km - b.km);
@@ -428,7 +427,7 @@
             }
         }
 
-        // 核心渲染：平滑流暢之動態視角 (前方閘道整體漸進向下逼近，目前位置固定於底部)
+        // 精準擬真渲染：取消獨立綠點，將底線作為「車輛當前駕駛線」，前方卡片平滑向下黏合底線
         function renderTimelineUI(upcoming, currentKM, activeData, direction) {
             const container = document.getElementById("timeline-container");
             if (upcoming.length === 0) {
@@ -447,15 +446,15 @@
             const segmentProgress = Math.abs(currentKM - prevExit.km);
             const progressRatio = Math.min(1.0, Math.max(0.0, segmentProgress / segmentTotal));
 
-            // 設定前方閘道整體向下靠近的流暢位移像素 (全平滑過渡)
-            const gateYOffset = progressRatio * 70;
+            // 計算下一個閘道向下逼近「底線」的平滑位移像素 (0.0km 時剛好 100% 貼著底線)
+            const gateYOffset = progressRatio * 90;
 
             let html = `
-                <!-- 100% 靠左絕對軌道線 (left-5 = 20px) -->
-                <div class="absolute left-5 top-3 bottom-14 w-1.5 bg-slate-700 rounded-full -translate-x-1/2"></div>
+                <!-- 100% 靠左絕對軌道線 (left-5 = 20px) 垂直延伸至底線 -->
+                <div class="absolute left-5 top-3 bottom-12 w-1.5 bg-slate-700 rounded-full -translate-x-1/2"></div>
 
-                <!-- 頂部前方 3 個閘道卡片 (整體平滑向下移動靠近駕駛者) -->
-                <div class="flex-1 flex flex-col justify-between relative z-10 pl-10 my-2 transition-transform duration-500 ease-out" 
+                <!-- 頂部前方 3 個閘道卡片 (平滑向下逼近最下方的駕駛底線) -->
+                <div class="flex-1 flex flex-col justify-between relative z-10 pl-10 my-2 transition-transform duration-300 ease-linear" 
                      style="transform: translateY(${gateYOffset}px);">
             `;
 
@@ -466,20 +465,20 @@
                 const isNext = index === 0;
 
                 html += `
-                    <div class="relative flex items-center justify-between">
-                        <!-- 靠左節點圓點 -->
-                        <div class="absolute -left-10 w-4 h-4 rounded-full ${isNext ? 'bg-amber-400 ring-4 ring-amber-400/30' : 'bg-slate-600'}"></div>
+                    <div class="relative flex items-center justify-between min-h-[48px]">
+                        <!-- 靠左節點圓點 (100% 垂直水平雙向對齊 left-5 軸線) -->
+                        <div class="absolute -left-10 top-1/2 -translate-y-1/2 w-4 h-4 rounded-full ${isNext ? 'bg-amber-400 ring-4 ring-amber-400/30' : 'bg-slate-600'}"></div>
                         
-                        <!-- 路牌標籤 (防止長名稱爆框) -->
+                        <!-- 路牌標籤與即時車速 -->
                         <div class="flex items-center space-x-2 overflow-hidden">
-                            <div class="${signClass} text-white px-3 py-1.5 rounded-xl font-bold flex items-center space-x-1.5 shadow-lg ${isNext ? 'scale-105 border-amber-300' : 'opacity-85'}">
+                            <div class="${signClass} text-white px-3.5 py-1.5 rounded-xl font-bold flex items-center space-x-2 shadow-lg ${isNext ? 'scale-105 border-amber-300' : 'opacity-85'}">
                                 <span class="text-xs md:text-sm font-black border-r border-white/40 pr-1.5 font-mono">${item.id.replace('N','')}</span>
                                 <span class="text-sm md:text-base font-extrabold tracking-wider whitespace-nowrap break-keep">${item.name}</span>
                             </div>
                             ${getSpeedTag(item.segmentSpeed || 85)}
                         </div>
 
-                        <!-- 剩餘距離 -->
+                        <!-- 剩餘距離與預估時間 -->
                         <div class="text-right pl-2">
                             <div class="text-lg font-black ${isNext ? 'text-amber-400 font-mono' : 'text-slate-200 font-mono'}">${dist} <span class="text-xs text-slate-400">km</span></div>
                             <div class="text-xs font-bold text-slate-400">約 ${estTime} 分</div>
@@ -490,12 +489,11 @@
 
             html += `</div>`;
 
-            // 最下方：固定「📍 目前位置」駕駛視角標籤 (完全防爆框保護)
+            // 最下方：這條橫向底線即為「駕駛當前位置」，不另外放置圓點
             const dirLabel = getDirectionText(currentRouteKey, direction);
 
             html += `
-                <div class="relative z-20 mt-auto pt-3 border-t border-slate-700/80 flex flex-col items-start pl-10 justify-center">
-                    <div class="absolute left-5 -translate-x-1/2 -top-2.5 w-5 h-5 bg-emerald-400 border-2 border-white rounded-full shadow-lg shadow-emerald-400/50 animate-pulse"></div>
+                <div class="relative z-20 mt-auto pt-3 border-t-2 border-emerald-500/80 flex flex-col items-start pl-10 justify-center">
                     <div class="bg-emerald-950/95 border border-emerald-500/80 text-emerald-300 px-3.5 py-1.5 rounded-xl shadow-2xl leading-tight max-w-full truncate">
                         <div class="text-emerald-300 font-black text-xs md:text-sm tracking-wide truncate">📍 目前位置: ${currentKM.toFixed(2)} K (${dirLabel})</div>
                         <div class="text-[10px] text-emerald-400/90 font-bold mt-0.5 truncate">距下個出口 (${nextExit.name}) ${Math.abs(nextExit.km - currentKM).toFixed(2)} km</div>
