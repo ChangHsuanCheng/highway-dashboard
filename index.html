@@ -57,7 +57,7 @@
             <span id="direction-tag" class="bg-blue-600/30 text-blue-400 border border-blue-500/30 px-3 py-0.5 rounded-md text-xs font-bold">自動辨識方向</span>
         </div>
 
-        <!-- 路線軸主區域 (100% 無縫貫穿線與幾何邊界對齊) -->
+        <!-- 路線軸主區域 (採平滑滾動與百分比對齊) -->
         <div id="timeline-container" class="relative flex-1 my-2 flex flex-col justify-between overflow-hidden">
             <div class="text-center text-slate-500 my-auto text-base">搜尋 GPS 定位中...</div>
         </div>
@@ -68,7 +68,7 @@
     <div id="sim-panel" class="hidden my-2 bg-slate-800 border border-amber-500/50 rounded-xl p-3 text-xs space-y-2">
         <div class="font-bold text-amber-400 flex justify-between items-center">
             <span>⚙️ 模擬參數設定</span>
-            <span class="text-[10px] text-slate-400">連續貫穿線與觸線過站模式</span>
+            <span class="text-[10px] text-slate-400">連續滾動與幾何扣貼模式</span>
         </div>
         <div class="grid grid-cols-3 gap-2">
             <div>
@@ -427,7 +427,7 @@
             }
         }
 
-        // 渲染核心：全貫穿導航線 + 三欄完全隔離 + 0.00km 觸線過站幾何算式
+        // 重構 UI 渲染引擎：全貫穿導航線 + Grid 三欄完全隔離 + 0.00km 幾何扣貼綠線過站
         function renderTimelineUI(upcoming, currentKM, activeData, direction) {
             const container = document.getElementById("timeline-container");
             if (upcoming.length === 0) {
@@ -446,14 +446,14 @@
             const segmentProgress = Math.abs(currentKM - prevExit.km);
             const progressRatio = Math.min(1.0, Math.max(0.0, segmentProgress / segmentTotal));
 
-            // 精確幾何位移量：最大下推 60px，當 progressRatio = 1.0 (0.00km) 時，第一個卡片底邊剛好觸碰綠線
-            const gateYOffset = progressRatio * 60;
+            // 精算下推像素：最大推移量 64px，當 progressRatio = 1.0 (距 0.00km) 時，第一個卡片底邊剛好壓貼於綠線上
+            const gateYOffset = progressRatio * 64;
 
             let html = `
-                <!-- 1. 全容器無縫貫穿導航線 (獨立長條背景，從頂端直通綠線) -->
+                <!-- 1. 全貫穿導航灰色軸線 (絕對層，獨立從頂部延伸至綠線，絕不斷線) -->
                 <div class="absolute left-[18px] top-0 bottom-[40px] w-1.5 bg-slate-700/80 rounded-full -translate-x-1/2 z-0"></div>
 
-                <!-- 2. 下推推進卡片容器 -->
+                <!-- 2. 下推推進卡片容器 (具備平滑滾動動態) -->
                 <div class="flex-1 flex flex-col justify-between relative z-10 my-1 pb-1 transition-transform duration-200 ease-linear" 
                      style="transform: translateY(${gateYOffset}px);">
             `;
@@ -465,15 +465,15 @@
                 const isNext = index === 0;
 
                 html += `
-                    <!-- 3 欄式絕對隔離網格：[36px 軌道專區 | 彈性路牌專區 | 距離資訊] -->
+                    <!-- 3 欄絕對隔離網格：[36px 軌道專區 | 彈性路牌專區 | 距離資訊] -->
                     <div class="grid grid-cols-[36px_1fr_auto] items-center min-h-[48px] relative">
                         
-                        <!-- Col 1: 圓點標點 (絕對固定在軌道線上，零偏離、不壓字) -->
+                        <!-- Col 1: 圓點標點 (絕對固定於 Column 1 軌道線上，零偏離、絕不壓到 Col 2 的路牌) -->
                         <div class="relative h-full flex items-center justify-center">
                             <div class="w-4 h-4 rounded-full z-10 ${isNext ? 'bg-amber-400 ring-4 ring-amber-400/30' : 'bg-slate-600'}"></div>
                         </div>
 
-                        <!-- Col 2: 路牌與車速標籤 -->
+                        <!-- Col 2: 路牌標籤與即時車速 -->
                         <div class="flex items-center space-x-2 overflow-hidden pl-1">
                             <div class="${signClass} text-white px-3 py-1.5 rounded-xl font-bold flex items-center space-x-2 shadow-lg ${isNext ? 'scale-105 border-amber-300' : 'opacity-85'}">
                                 <span class="text-xs md:text-sm font-black border-r border-white/40 pr-1.5 font-mono">${item.id.replace('N','')}</span>
@@ -494,7 +494,7 @@
 
             html += `</div>`;
 
-            // 最下方：綠色駕駛基準線 (卡片底端精準觸碰即表示抵達)
+            // 最下方：綠色駕駛基準線 (卡片底端碰觸綠線即代表抵達 0.00km)
             const dirLabel = getDirectionText(currentRouteKey, direction);
 
             html += `
