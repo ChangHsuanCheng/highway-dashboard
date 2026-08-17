@@ -57,7 +57,7 @@
             <span id="direction-tag" class="bg-blue-600/30 text-blue-400 border border-blue-500/30 px-3 py-0.5 rounded-md text-xs font-bold">自動辨識方向</span>
         </div>
 
-        <!-- 路線軸主區域 -->
+        <!-- 路線軸主區域 (100% 靠左結構，無組件重疊) -->
         <div id="timeline-container" class="relative flex-1 my-3 flex flex-col justify-between overflow-hidden">
             <div class="text-center text-slate-500 my-auto text-base">搜尋 GPS 定位中...</div>
         </div>
@@ -82,7 +82,6 @@
             <div>
                 <label class="text-slate-400 block mb-1">方向</label>
                 <select id="sim-dir" class="bg-slate-900 text-white p-1.5 rounded border border-slate-700 w-full font-bold">
-                    <!-- 動態由 JavaScript 生成對應方向選項 -->
                 </select>
             </div>
             <div>
@@ -101,7 +100,6 @@
     </footer>
 
     <script>
-        // 定義道路屬性：type 為 'NS' (南北向) 或 'EW' (東西向)
         const routesDatabase = {
             "國1": { name: "國1", express: false, type: "NS", nodes: [
                 { "id": "0", "freeway": "國道1號", "name": "基隆端", "direction": "S", "km": 0.0, "lat": 25.128, "lng": 121.740, "segmentSpeed": 85 },
@@ -192,7 +190,6 @@
         let simInterval = null;
         let simCurrentKM = 41.5;
 
-        // 取得明確對應方向文字（完全拆開標示）
         function getDirectionText(routeKey, directionCode) {
             const rType = routesDatabase[routeKey].type;
             if (rType === "NS") {
@@ -249,7 +246,6 @@
             badge.innerText = rData.name;
             badge.className = `${rData.express ? 'bg-[#C00000]' : 'bg-[#007A3D]'} text-white font-black px-3 py-1 rounded-xl text-base tracking-wider shadow border border-white/80`;
             
-            // 更新模擬方向選單選項
             const simDirSelect = document.getElementById("sim-dir");
             if (rData.type === "NS") {
                 simDirSelect.innerHTML = `<option value="S">南下</option><option value="N">北上</option>`;
@@ -431,7 +427,7 @@
             }
         }
 
-        // 重構渲染：均勻分佈前方閘道，並透過區間比例實現真實向下靠近動態
+        // 重構UI渲染：卡片固定等距排列，動態垂直向上平滑推進「📍 目前位置」標籤
         function renderTimelineUI(upcoming, currentKM, activeData, direction) {
             const container = document.getElementById("timeline-container");
             if (upcoming.length === 0) {
@@ -450,16 +446,25 @@
             const segmentProgress = Math.abs(currentKM - prevExit.km);
             const progressRatio = Math.min(1.0, Math.max(0.0, segmentProgress / segmentTotal));
 
-            // 設定動態垂直向下靠近距離 (全螢幕比例化，例如向下推動 120px)
-            const gateYOffset = progressRatio * 120;
+            // 計算動態位置標籤 CSS bottom 垂直高度 (從區間底部的 10% 慢慢向上推進至 85%)
+            const currentPositionBottom = 10 + (progressRatio * 75);
 
             let html = `
                 <!-- 100% 靠左絕對軌道線 (left-5 = 20px) -->
-                <div class="absolute left-5 top-3 bottom-12 w-1.5 bg-slate-700 rounded-full -translate-x-1/2"></div>
+                <div class="absolute left-5 top-3 bottom-3 w-1.5 bg-slate-700 rounded-full -translate-x-1/2"></div>
 
-                <!-- 填滿剩餘空間的彈性容器 (解決排版不平均) -->
-                <div class="flex-1 flex flex-col justify-evenly relative z-10 transition-all duration-300 ease-linear pl-10 my-2" 
-                     style="transform: translateY(${gateYOffset}px);">
+                <!-- 📍 動態垂直向上平滑推進標籤 (完全解決路牌被擠壓撞擊的問題) -->
+                <div class="absolute left-5 -translate-x-1/2 z-20 transition-all duration-300 ease-linear flex items-center pl-8" 
+                     style="bottom: ${currentPositionBottom}%;">
+                    <div class="absolute left-0 -translate-x-1/2 w-5 h-5 bg-emerald-400 border-2 border-white rounded-full shadow-lg shadow-emerald-400/50 animate-pulse"></div>
+                    <div class="bg-emerald-950/95 border border-emerald-500/80 text-emerald-300 px-3 py-1.5 rounded-xl shadow-2xl leading-tight whitespace-nowrap">
+                        <div class="text-emerald-300 font-black text-xs tracking-wide">📍 ${currentKM.toFixed(2)} K (${getDirectionText(currentRouteKey, direction)})</div>
+                        <div class="text-[10px] text-emerald-400/90 font-bold mt-0.5">距下個出口 ${Math.abs(nextExit.km - currentKM).toFixed(2)} km</div>
+                    </div>
+                </div>
+
+                <!-- 頂部前方 3 個閘道卡片 (全螢幕均勻分佈) -->
+                <div class="flex-1 flex flex-col justify-between relative z-10 pl-10 my-2">
             `;
 
             displayUpcoming.reverse().forEach((item, revIndex) => {
@@ -477,7 +482,7 @@
                         <div class="flex items-center space-x-2">
                             <div class="${signClass} text-white px-3.5 py-1.5 rounded-xl font-bold flex items-center space-x-2 shadow-lg ${isNext ? 'scale-105 border-amber-300' : 'opacity-85'}">
                                 <span class="text-sm font-black border-r border-white/40 pr-2 font-mono">${item.id.replace('N','')}</span>
-                                <span class="text-base font-extrabold tracking-wider">${item.name}</span>
+                                <span class="text-base font-extrabold tracking-wider whitespace-nowrap">${item.name}</span>
                             </div>
                             ${getSpeedTag(item.segmentSpeed || 85)}
                         </div>
@@ -492,19 +497,6 @@
             });
 
             html += `</div>`;
-
-            // 最下方：固定「📍 目前位置」駕駛視角標籤 (完全拆開方向標示)
-            const dirLabel = getDirectionText(currentRouteKey, direction);
-
-            html += `
-                <div class="relative z-20 mt-auto pt-3 border-t border-slate-700/80 flex flex-col items-start pl-10 justify-center">
-                    <div class="absolute left-5 -translate-x-1/2 -top-2.5 w-5 h-5 bg-emerald-400 border-2 border-white rounded-full shadow-lg shadow-emerald-400/50 animate-pulse"></div>
-                    <div class="bg-emerald-950/95 border border-emerald-500/80 text-emerald-300 px-3.5 py-1.5 rounded-xl shadow-2xl leading-tight">
-                        <div class="text-emerald-300 font-black text-sm tracking-wide">📍 目前位置: ${currentKM.toFixed(2)} K (${dirLabel})</div>
-                        <div class="text-[11px] text-emerald-400/90 font-bold mt-0.5">距下個出口 (${nextExit.name}) ${Math.abs(nextExit.km - currentKM).toFixed(2)} km</div>
-                    </div>
-                </div>
-            `;
 
             container.innerHTML = html;
         }
