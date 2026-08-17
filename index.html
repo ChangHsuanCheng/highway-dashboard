@@ -47,7 +47,7 @@
         </div>
     </header>
 
-    <main class="flex-1 bg-[#1e293b]/90 border border-slate-700/80 rounded-2xl p-4 shadow-2xl flex flex-col justify-between relative overflow-hidden min-h-[380px]">
+    <main class="flex-1 bg-[#1e293b]/90 border border-slate-700/80 rounded-2xl p-4 shadow-2xl flex flex-col justify-between relative overflow-hidden min-h-[340px]">
         
         <div class="text-xs font-bold text-slate-400 tracking-wider border-b border-slate-700/60 pb-2 flex justify-between items-center z-10 shrink-0">
             <span class="flex items-center">
@@ -57,7 +57,7 @@
             <span id="direction-tag" class="bg-blue-600/30 text-blue-400 border border-blue-500/30 px-3 py-0.5 rounded-md text-xs font-bold">自動辨識方向</span>
         </div>
 
-        <div id="timeline-container" class="relative flex-1 my-2 flex flex-col justify-end overflow-hidden h-[260px]">
+        <div id="timeline-container" class="relative flex-1 my-2 flex flex-col justify-end overflow-hidden">
             <div class="absolute left-[18px] top-0 bottom-[40px] w-1.5 bg-slate-700/80 rounded-full -translate-x-1/2 z-0"></div>
 
             <div id="scroll-track" class="relative z-10 w-full transition-transform duration-200 ease-linear">
@@ -108,8 +108,8 @@
     </footer>
 
     <script>
-        // 🟢 綠線對齊距離偏差微調 (單位: px)
-        const LINE_OFFSET_PX = 70; 
+        // 🟢 綠線對齊距離偏差微調 (預設 0px 為精準碰線)
+        const LINE_OFFSET_PX = 0; 
 
         const routesDatabase = {
             "國1": { name: "國1", express: false, type: "NS", nodes: [
@@ -501,7 +501,8 @@
             const totalNodesCount = sortedNodes.length;
 
             const cardHeight = 70;
-            const targetY = -((nextIndex - (totalNodesCount - 3)) * cardHeight) + (progressRatio * cardHeight) + LINE_OFFSET_PX;
+            // 正確動態算式：校正錨定基準，確保不管幾點幾公里，Next Exit 在 0.00km 時皆無縫壓貼綠線
+            const targetY = -((nextIndex - (totalNodesCount - 1)) * cardHeight) + (progressRatio * cardHeight) + LINE_OFFSET_PX;
 
             sortedNodes.forEach((item) => {
                 const cardEl = document.getElementById(`gate-card-${item.id}`);
