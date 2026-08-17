@@ -1,6 +1,62 @@
-<!-- 邏輯腳本 (完整閘道與優化定位版) -->
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- Web App / PWA 全螢幕設定 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="國道儀表板">
+    <title>國道閘道儀表板</title>
+    <!-- Tailwind CSS 快速佈局 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
+</head>
+<body class="bg-black text-white min-h-screen flex flex-col p-4 justify-between select-none">
+
+    <!-- 頂部：當前位置與車速 -->
+    <header class="bg-gray-900 border border-gray-800 rounded-2xl p-4 flex justify-between items-center shadow-lg">
+        <div>
+            <div class="text-xs text-gray-400 font-bold uppercase tracking-wider">目前位置</div>
+            <div id="current-km" class="text-4xl font-extrabold text-green-400 font-mono">--.- K</div>
+        </div>
+        <div class="text-right">
+            <div class="text-xs text-gray-400 font-bold uppercase tracking-wider">時速</div>
+            <div id="current-speed" class="text-3xl font-bold text-white">0 <span class="text-sm font-normal text-gray-400">km/h</span></div>
+        </div>
+    </header>
+
+    <!-- 中間核心：下一個閘道重點提示 -->
+    <main class="my-auto py-4">
+        <div class="bg-gradient-to-b from-blue-950 to-gray-900 border-2 border-blue-500/50 rounded-3xl p-6 text-center shadow-2xl relative overflow-hidden">
+            <div class="text-orange-400 text-xs font-bold tracking-widest uppercase mb-1">NEXT EXIT / 下一個閘道</div>
+            <div id="next-name" class="text-3xl font-black text-white my-2">搜尋 GPS 定位中...</div>
+            
+            <div class="flex justify-center items-baseline my-2">
+                <span id="next-distance" class="text-7xl font-black text-yellow-400 font-mono tracking-tight">--.-</span>
+                <span class="text-2xl font-bold text-yellow-400 ml-2">公里</span>
+            </div>
+            
+            <div id="next-km" class="text-gray-400 text-sm">請確定已允許 GPS 定位權限</div>
+        </div>
+    </main>
+
+    <!-- 下半部：未來閘道預覽 -->
+    <footer class="bg-gray-900 border border-gray-800 rounded-2xl p-4 max-h-52 flex flex-col">
+        <div class="text-xs text-gray-400 font-bold uppercase tracking-wider mb-2">前方閘道預覽</div>
+        <div id="upcoming-list" class="overflow-y-auto space-y-2 pr-1">
+            <div class="text-sm text-gray-500 text-center py-2">尚未取得座標</div>
+        </div>
+    </footer>
+
+    <!-- 邏輯腳本 -->
     <script>
-        // 內嵌國道一號完整主要交流道資料 (含林口、桃園、中壢、平鎮等)
+        // 內嵌國道一號主要交流道資料
         const highwayData = [
             // --- 南下 (S) ---
             { "id": "N1-000S", "freeway": "國道1號", "name": "基隆端", "direction": "S", "km": 0.0, "lat": 25.128, "lng": 121.740 },
@@ -37,7 +93,7 @@
             { "id": "N1-000N", "freeway": "國道1號", "name": "基隆端", "direction": "N", "km": 0.0, "lat": 25.128, "lng": 121.740 }
         ];
 
-        // 計算距離 (Haversine Formula)
+        // 計算經緯度距離 (Haversine Formula)
         function getDistanceKM(lat1, lon1, lat2, lon2) {
             const R = 6371;
             const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -75,7 +131,6 @@
                     // 判斷南下 (S) 或北上 (N)
                     let currentDirection = "S";
                     if (heading !== null && !isNaN(heading)) {
-                        // 方位角 90 ~ 270 度判定為南下，其餘為北上
                         currentDirection = (heading >= 90 && heading <= 270) ? "S" : "N";
                     }
 
@@ -138,8 +193,11 @@
                 },
                 { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
             );
+        } else {
+            alert("您的裝置或瀏覽器不支援 GPS 定位");
         }
 
+        // 螢幕防休眠
         async function requestWakeLock() {
             try {
                 if ('wakeLock' in navigator) await navigator.wakeLock.request('screen');
@@ -147,3 +205,5 @@
         }
         requestWakeLock();
     </script>
+</body>
+</html>
