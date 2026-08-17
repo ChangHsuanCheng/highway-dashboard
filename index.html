@@ -427,7 +427,7 @@
             }
         }
 
-        // 精準幾何計算：圓點 center 與卡片底端精準貼合於 0.00km 綠色駕駛底線
+        // 渲染核心 (固定 pl-12 內距，確保圓點 100% 居中且與路牌安全拉開距離)
         function renderTimelineUI(upcoming, currentKM, activeData, direction) {
             const container = document.getElementById("timeline-container");
             if (upcoming.length === 0) {
@@ -441,19 +441,17 @@
             const isExpress = routesDatabase[currentRouteKey].express;
             const signClass = isExpress ? "express-sign" : "highway-sign";
 
-            // 計算在「剛過閘道」與「下一個閘道」之間的垂直平滑進度百分比 (0.0 ~ 1.0)
             const segmentTotal = Math.abs(nextExit.km - prevExit.km) || 1;
             const segmentProgress = Math.abs(currentKM - prevExit.km);
             const progressRatio = Math.min(1.0, Math.max(0.0, segmentProgress / segmentTotal));
 
-            // 精準物理下推位移量 (最大精準限制在 48px，確保到達 0.00km 時黃色圓點 center 剛好扣壓於綠線上)
             const gateYOffset = progressRatio * 48;
 
             let html = `
-                <!-- 縱向灰色軸線：精準 100% 對齊 left-[20px] 延伸至綠線 -->
+                <!-- 縱向灰色軸線：精準對齊 left-[20px] 延伸至綠線 -->
                 <div class="absolute left-[20px] top-3 bottom-[42px] w-1.5 bg-slate-700 rounded-full -translate-x-1/2 z-0"></div>
 
-                <!-- 前方閘道卡片容器 (精準下推靠近綠線，0.00km 剛好貼合綠線) -->
+                <!-- 前方閘道卡片容器 (下推推進) -->
                 <div class="flex-1 flex flex-col justify-between relative z-10 my-1 pb-2 transition-transform duration-300 ease-linear" 
                      style="transform: translateY(${gateYOffset}px);">
             `;
@@ -465,20 +463,21 @@
                 const isNext = index === 0;
 
                 html += `
+                    <!-- 固定 pl-12 (48px 左內距)，確保標牌不往左擴展壓到圓點 -->
                     <div class="relative flex items-center justify-between min-h-[44px] pl-12">
-                        <!-- 關鍵修復：圓點 100% 水平垂直集中壓於 left-[20px] 灰色軸線上 -->
+                        <!-- 圓點：絕對定位強行釘鎖在 left-[20px] 軸心 -->
                         <div class="absolute left-[20px] top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full z-20 ${isNext ? 'bg-amber-400 ring-4 ring-amber-400/30' : 'bg-slate-600'}"></div>
                         
-                        <!-- 路牌標籤與即時車速 -->
-                        <div class="flex items-center space-x-2 overflow-hidden">
-                            <div class="${signClass} text-white px-3.5 py-1.5 rounded-xl font-bold flex items-center space-x-2 shadow-lg ${isNext ? 'scale-105 border-amber-300' : 'opacity-85'}">
+                        <!-- 路牌標籤與即時車速 (shrink-0 保護左側邊距) -->
+                        <div class="flex items-center space-x-2 overflow-hidden shrink-0">
+                            <div class="${signClass} text-white px-3 py-1.5 rounded-xl font-bold flex items-center space-x-2 shadow-lg ${isNext ? 'scale-105 border-amber-300' : 'opacity-85'}">
                                 <span class="text-xs md:text-sm font-black border-r border-white/40 pr-1.5 font-mono">${item.id.replace('N','')}</span>
                                 <span class="text-sm md:text-base font-extrabold tracking-wider whitespace-nowrap break-keep">${item.name}</span>
                             </div>
                             ${getSpeedTag(item.segmentSpeed || 85)}
                         </div>
 
-                        <!-- 剩餘距離與時間 -->
+                        <!-- 剩餘距離 -->
                         <div class="text-right pl-2">
                             <div class="text-lg font-black ${isNext ? 'text-amber-400 font-mono' : 'text-slate-200 font-mono'}">${dist} <span class="text-xs text-slate-400">km</span></div>
                             <div class="text-xs font-bold text-slate-400">約 ${estTime} 分</div>
