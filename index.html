@@ -15,21 +15,21 @@
         .highway-sign {
             background-color: #007A3D;
             border: 2px solid #FFFFFF;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
         }
         .express-sign {
             background-color: #C00000;
             border: 2px solid #FFFFFF;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
         }
         .gate-row {
-            height: 70px; /* 固定幾何高度 */
+            height: 42px; /* 精算 9 卡片視窗列高 */
         }
     </style>
 </head>
 <body class="bg-[#0f172a] text-white min-h-screen flex flex-col p-3 pt-10 justify-between select-none overflow-hidden">
 
-    <header class="bg-[#1e293b] border border-slate-700/80 rounded-2xl p-4 flex justify-between items-center shadow-xl mb-3 shrink-0">
+    <header class="bg-[#1e293b] border border-slate-700/80 rounded-2xl p-3.5 flex justify-between items-center shadow-xl mb-2 shrink-0">
         <div class="flex items-center space-x-3">
             <div id="route-badge" class="bg-[#007A3D] text-white font-black px-3 py-1 rounded-xl text-base tracking-wider shadow border border-white/80">
                 國1
@@ -47,9 +47,9 @@
         </div>
     </header>
 
-    <main class="flex-1 bg-[#1e293b]/90 border border-slate-700/80 rounded-2xl p-4 shadow-2xl flex flex-col justify-between relative overflow-hidden min-h-[360px]">
+    <main class="flex-1 bg-[#1e293b]/90 border border-slate-700/80 rounded-2xl p-3 shadow-2xl flex flex-col justify-between relative overflow-hidden min-h-[380px]">
         
-        <div class="text-xs font-bold text-slate-400 tracking-wider border-b border-slate-700/60 pb-2 flex justify-between items-center z-10 shrink-0">
+        <div class="text-xs font-bold text-slate-400 tracking-wider border-b border-slate-700/60 pb-1.5 flex justify-between items-center z-10 shrink-0">
             <span class="flex items-center">
                 <span id="api-status-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
                 <span id="api-status-text">TDX 即時路況連線中...</span>
@@ -57,7 +57,7 @@
             <span id="direction-tag" class="bg-blue-600/30 text-blue-400 border border-blue-500/30 px-3 py-0.5 rounded-md text-xs font-bold">自動辨識方向</span>
         </div>
 
-        <div id="timeline-container" class="relative flex-1 my-2 flex flex-col justify-end overflow-hidden">
+        <div id="timeline-container" class="relative flex-1 my-1 flex flex-col justify-end overflow-hidden">
             <div class="absolute left-[18px] top-0 bottom-0 w-1.5 bg-slate-700/80 rounded-full -translate-x-1/2 z-0"></div>
 
             <div id="scroll-track" class="relative z-10 w-full transition-transform duration-200 ease-linear">
@@ -65,8 +65,8 @@
             </div>
         </div>
 
-        <div class="relative z-20 pt-2 border-t-4 border-emerald-500 flex flex-col items-start pl-9 justify-center bg-[#1e293b]/95 shrink-0">
-            <div class="bg-emerald-950/95 border border-emerald-500/80 text-emerald-300 px-3.5 py-1.5 rounded-xl shadow-2xl leading-tight max-w-full truncate">
+        <div class="relative z-20 pt-1.5 border-t-4 border-emerald-500 flex flex-col items-start pl-9 justify-center bg-[#1e293b]/95 shrink-0">
+            <div class="bg-emerald-950/95 border border-emerald-500/80 text-emerald-300 px-3.5 py-1 rounded-xl shadow-2xl leading-tight max-w-full truncate">
                 <div id="bottom-info-main" class="text-emerald-300 font-black text-xs md:text-sm tracking-wide truncate">📍 目前位置: -- K</div>
                 <div id="bottom-info-sub" class="text-[10px] text-emerald-400/90 font-bold mt-0.5 truncate">距下個出口 -- km</div>
             </div>
@@ -77,7 +77,7 @@
     <div id="sim-panel" class="hidden my-2 bg-slate-800 border border-amber-500/50 rounded-xl p-3 text-xs space-y-2 shrink-0">
         <div class="font-bold text-amber-400 flex justify-between items-center">
             <span>⚙️ 模擬參數設定</span>
-            <span class="text-[10px] text-slate-400">極簡 4-Card 幾何滑動視窗</span>
+            <span class="text-[10px] text-slate-400">9 卡片淡入淡出佇列模式</span>
         </div>
         <div class="grid grid-cols-3 gap-2">
             <div>
@@ -111,8 +111,9 @@
         // ========================================================
         // ⚙️ 對齊調校參數開關
         // ========================================================
-        const CARD_HEIGHT_PX = 70;      // 每張卡片的固定高度
-        const LINE_OFFSET_PX = 0;       // 綠線觸線對齊微調 (px)
+        const CARD_HEIGHT_PX = 42;      // 容納 9 個卡片的精算單高 (px)
+        const WINDOW_SIZE = 9;          // 介面保持顯示 9 個閘道
+        const LINE_OFFSET_PX = 0;       // 綠線觸線壓線微調 (px)
         // ========================================================
 
         const routesDatabase = {
@@ -439,31 +440,33 @@
             }
         }
 
-        // 僅構建「4卡片滑動視窗」（剛過站 1 站 + 前方 3 站），保證 100% 不飛框
+        // 構建視窗 DOM（包含最上方剛進場的新卡片淡入與最下方過站卡片淡出）
         function buildWindowDOM(windowNodes) {
             const track = document.getElementById("scroll-track");
             const isExpress = routesDatabase[currentRouteKey].express;
             const signClass = isExpress ? "express-sign" : "highway-sign";
 
             let html = "";
-            windowNodes.forEach(item => {
+            windowNodes.forEach((item, index) => {
+                const isTopFadeIn = index === 0; // 最上方新進場的卡片淡入
+
                 html += `
-                    <div id="gate-card-${item.id}" class="gate-row grid grid-cols-[36px_1fr_auto] items-center relative transition-opacity duration-300">
+                    <div id="gate-card-${item.id}" class="gate-row grid grid-cols-[36px_1fr_auto] items-center relative transition-all duration-300 ${isTopFadeIn ? 'opacity-0' : 'opacity-100'}">
                         <div class="relative h-full flex items-center justify-center">
                             <div id="gate-dot-${item.id}" class="w-4 h-4 rounded-full z-10 bg-slate-600"></div>
                         </div>
 
                         <div class="flex items-center space-x-2 overflow-hidden pl-1">
-                            <div class="${signClass} text-white px-3 py-1.5 rounded-xl font-bold flex items-center space-x-2 shadow-lg">
-                                <span class="text-xs md:text-sm font-black border-r border-white/40 pr-1.5 font-mono">${item.id.replace('N','')}</span>
-                                <span class="text-sm md:text-base font-extrabold tracking-wider whitespace-nowrap break-keep">${item.name}</span>
+                            <div class="${signClass} text-white px-2.5 py-1 rounded-xl font-bold flex items-center space-x-2 shadow-lg">
+                                <span class="text-xs font-black border-r border-white/40 pr-1.5 font-mono">${item.id.replace('N','')}</span>
+                                <span class="text-xs md:text-sm font-extrabold tracking-wider whitespace-nowrap break-keep">${item.name}</span>
                             </div>
                             ${getSpeedTag(item.segmentSpeed || 85)}
                         </div>
 
                         <div class="text-right pl-2 shrink-0">
-                            <div id="gate-dist-${item.id}" class="text-lg font-black text-slate-200 font-mono">-- <span class="text-xs text-slate-400">km</span></div>
-                            <div id="gate-time-${item.id}" class="text-xs font-bold text-slate-400">--</div>
+                            <div id="gate-dist-${item.id}" class="text-base font-black text-slate-200 font-mono">-- <span class="text-xs text-slate-400">km</span></div>
+                            <div id="gate-time-${item.id}" class="text-[10px] font-bold text-slate-400">--</div>
                         </div>
                     </div>
                 `;
@@ -471,7 +474,7 @@
             track.innerHTML = html;
         }
 
-        // 核心滾動引擎：4 卡片極簡滑動佇列（絕對零飛框、絕對看的到）
+        // 9 卡片淡入淡出連續滾動引擎
         function renderTimelineUI(currentKM, activeData, direction) {
             let upcoming = [];
             if (direction === "S") {
@@ -485,31 +488,30 @@
             const nextExit = upcoming[0];
             const prevExit = activeData.filter(i => (direction === 'S' ? i.km <= currentKM : i.km >= currentKM)).pop() || activeData[0];
 
-            // 組合「剛過站 1 站 + 前方 3 站」（共 4 站，遠在最上，近在最下）
-            const displayUpcoming = [prevExit, ...upcoming.slice(0, 10)];
-            const windowNodes = [...displayUpcoming].sort((a, b) => {
+            // 保持 9 個閘道：[頂部剛進場 1 個 + 中間未過站 7 個 + 最底端 Next Exit]
+            const displayUpcoming = upcoming.slice(0, WINDOW_SIZE - 1);
+            const windowNodes = [prevExit, ...displayUpcoming].sort((a, b) => {
                 return direction === "S" ? b.km - a.km : a.km - b.km;
             });
 
             const currentWindowKey = windowNodes.map(n => n.id).join(',');
 
-            // 僅當過站（視窗換人）時才重繪 DOM，避免日常影幀硬切
+            // 切換視窗組別時重建 DOM (極低頻率，毫秒過渡)
             if (lastBuiltWindowKey !== currentWindowKey) {
                 buildWindowDOM(windowNodes);
                 lastBuiltWindowKey = currentWindowKey;
             }
 
-            // 區間進度 (0.0 -> 1.0)
+            // 區間推進比例 (0.0 -> 1.0)
             const segmentTotal = Math.abs(nextExit.km - prevExit.km) || 1;
             const segmentProgress = Math.abs(currentKM - prevExit.km);
             const progressRatio = Math.min(1.0, Math.max(0.0, segmentProgress / segmentTotal));
 
-            // 🟢 極簡位移算式：控制量永遠在 0px ~ 70px 之間，絕不飛框！
-            // 倒數至 0.00km (progressRatio=1.0) 時，Next Exit 底邊精準 100% 貼合壓在綠線上
+            // 精算 Y 軸動態推進：倒數至 0.00km (progressRatio=1.0) 時，Next Exit 精準壓貼綠線
             const cardHeight = CARD_HEIGHT_PX;
             const targetY = (progressRatio * cardHeight) + LINE_OFFSET_PX;
 
-            windowNodes.forEach((item) => {
+            windowNodes.forEach((item, index) => {
                 const cardEl = document.getElementById(`gate-card-${item.id}`);
                 const distEl = document.getElementById(`gate-dist-${item.id}`);
                 const timeEl = document.getElementById(`gate-time-${item.id}`);
@@ -528,20 +530,25 @@
 
                 if (isNext) {
                     dotEl.className = "w-4 h-4 rounded-full z-10 bg-amber-400 ring-4 ring-amber-400/30";
-                    distEl.className = "text-lg font-black text-amber-400 font-mono";
+                    distEl.className = "text-base font-black text-amber-400 font-mono";
                     cardEl.style.opacity = "1";
                 } else if (isPassed) {
                     dotEl.className = "w-4 h-4 rounded-full z-10 bg-slate-700";
-                    distEl.className = "text-lg font-black text-slate-500 font-mono";
-                    cardEl.style.opacity = "0.15"; // 剛過的卡片向下滑出綠線淡出
+                    distEl.className = "text-base font-black text-slate-500 font-mono";
+                    cardEl.style.opacity = "0.15"; // 過站向下滑出綠線平滑淡出
                 } else {
                     dotEl.className = "w-4 h-4 rounded-full z-10 bg-slate-600";
-                    distEl.className = "text-lg font-black text-slate-200 font-mono";
-                    cardEl.style.opacity = "1";
+                    distEl.className = "text-base font-black text-slate-200 font-mono";
+                    // 頂部新進入的卡片隨推進平滑淡入
+                    if (index === 0) {
+                        cardEl.style.opacity = `${progressRatio}`;
+                    } else {
+                        cardEl.style.opacity = "1";
+                    }
                 }
             });
 
-            // 毫秒級 Transform 連續位移
+            // 連續 Transform 物理推進
             const track = document.getElementById("scroll-track");
             track.style.transform = `translateY(${targetY}px)`;
 
