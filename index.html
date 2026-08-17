@@ -57,7 +57,7 @@
             <span id="direction-tag" class="bg-blue-600/30 text-blue-400 border border-blue-500/30 px-3 py-0.5 rounded-md text-xs font-bold">自動辨識方向</span>
         </div>
 
-        <div id="timeline-container" class="relative flex-1 my-2 flex flex-col justify-end overflow-hidden">
+        <div id="timeline-container" class="relative flex-1 my-2 flex flex-col justify-end overflow-hidden min-h-[220px]">
             <div class="absolute left-[18px] top-0 bottom-[40px] w-1.5 bg-slate-700/80 rounded-full -translate-x-1/2 z-0"></div>
 
             <div id="scroll-track" class="relative z-10 w-full transition-transform duration-200 ease-linear">
@@ -108,7 +108,7 @@
     </footer>
 
     <script>
-        // 🟢 綠線對齊距離偏差微調 (預設 0px 為精準碰線)
+        // 🟢 綠線對齊距離偏差微調 (單位: px，可依照需求微調)
         const LINE_OFFSET_PX = 0; 
 
         const routesDatabase = {
@@ -200,8 +200,7 @@
         let isSimulation = false;
         let simInterval = null;
         let simCurrentKM = 6.0;
-        let lastBuiltRouteKey = null;
-        let lastBuiltDirection = null;
+        let lastBuiltWindowKey = null;
 
         function getDirectionText(routeKey, directionCode) {
             const rType = routesDatabase[routeKey].type;
@@ -264,7 +263,7 @@
             } else {
                 simDirSelect.innerHTML = `<option value="S">東向</option><option value="N">西向</option>`;
             }
-            lastBuiltRouteKey = null;
+            lastBuiltWindowKey = null;
         }
 
         function autoDetectRoute(lat, lng) {
@@ -387,7 +386,7 @@
             if (isSimulation) startSimulationLoop();
         });
         document.getElementById("sim-dir").addEventListener("change", () => { 
-            lastBuiltRouteKey = null;
+            lastBuiltWindowKey = null;
             if (isSimulation) startSimulationLoop(); 
         });
 
@@ -436,13 +435,14 @@
             }
         }
 
-        function buildFullRouteDOM(activeNodes) {
+        // 僅構建目前「視窗內部」的 3~4 個站點卡片（避免整條國道爆框）
+        function buildWindowDOM(windowNodes) {
             const track = document.getElementById("scroll-track");
             const isExpress = routesDatabase[currentRouteKey].express;
             const signClass = isExpress ? "express-sign" : "highway-sign";
 
             let html = "";
-            activeNodes.forEach(item => {
+            windowNodes.forEach(item => {
                 html += `
                     <div id="gate-card-${item.id}" class="gate-row grid grid-cols-[36px_1fr_auto] items-center relative transition-opacity duration-300">
                         <div class="relative h-full flex items-center justify-center">
@@ -467,16 +467,8 @@
             track.innerHTML = html;
         }
 
+        // 核心渲染：滑動窗口對齊
         function renderTimelineUI(currentKM, activeData, direction) {
-            if (lastBuiltRouteKey !== currentRouteKey || lastBuiltDirection !== direction) {
-                const sortedNodes = [...activeData].sort((a, b) => {
-                    return direction === "S" ? b.km - a.km : a.km - b.km;
-                });
-                buildFullRouteDOM(sortedNodes);
-                lastBuiltRouteKey = currentRouteKey;
-                lastBuiltDirection = direction;
-            }
-
             let upcoming = [];
             if (direction === "S") {
                 upcoming = activeData.filter(item => item.km > currentKM).sort((a, b) => a.km - b.km);
@@ -489,22 +481,31 @@
             const nextExit = upcoming[0];
             const prevExit = activeData.filter(i => (direction === 'S' ? i.km <= currentKM : i.km >= currentKM)).pop() || activeData[0];
 
+            // 視窗取 3 個：遠 -> 近 (第3遠 -> 第2遠 -> 下個出口)
+            const displayUpcoming = upcoming.slice(0, 3);
+            const windowNodes = [...displayUpcoming].sort((a, b) => {
+                return direction === "S" ? b.km - a.km : a.km - b.km;
+            });
+
+            const currentWindowKey = windowNodes.map(n => n.id).join(',');
+
+            // 僅當過站（視窗組組換人）時，才構建 DOM（高效率，毫秒不閃爍）
+            if (lastBuiltWindowKey !== currentWindowKey) {
+                buildWindowDOM(windowNodes);
+                lastBuiltWindowKey = currentWindowKey;
+            }
+
+            // 區間進度比例 (0.0 -> 1.0)
             const segmentTotal = Math.abs(nextExit.km - prevExit.km) || 1;
             const segmentProgress = Math.abs(currentKM - prevExit.km);
             const progressRatio = Math.min(1.0, Math.max(0.0, segmentProgress / segmentTotal));
 
-            const sortedNodes = [...activeData].sort((a, b) => {
-                return direction === "S" ? b.km - a.km : a.km - b.km;
-            });
-
-            const nextIndex = sortedNodes.findIndex(n => n.id === nextExit.id);
-            const totalNodesCount = sortedNodes.length;
-
+            // 精確幾何位移：70px 列高，當距離倒數至 0.00km (progressRatio=1.0) 時，下個出口 (最底端卡片) 底邊精準壓貼綠線
             const cardHeight = 70;
-            // 正確動態算式：校正錨定基準，確保不管幾點幾公里，Next Exit 在 0.00km 時皆無縫壓貼綠線
-            const targetY = -((nextIndex - (totalNodesCount - 1)) * cardHeight) + (progressRatio * cardHeight) + LINE_OFFSET_PX;
+            const targetY = (progressRatio * cardHeight) + LINE_OFFSET_PX;
 
-            sortedNodes.forEach((item) => {
+            // 更新純文字與點位高亮
+            windowNodes.forEach((item) => {
                 const cardEl = document.getElementById(`gate-card-${item.id}`);
                 const distEl = document.getElementById(`gate-dist-${item.id}`);
                 const timeEl = document.getElementById(`gate-time-${item.id}`);
@@ -519,16 +520,11 @@
                 timeEl.innerText = `約 ${estTime} 分`;
 
                 const isNext = item.id === nextExit.id;
-                const isPassed = (direction === 'S' ? item.km <= currentKM : item.km >= currentKM);
 
                 if (isNext) {
                     dotEl.className = "w-4 h-4 rounded-full z-10 bg-amber-400 ring-4 ring-amber-400/30";
                     distEl.className = "text-lg font-black text-amber-400 font-mono";
                     cardEl.style.opacity = "1";
-                } else if (isPassed) {
-                    dotEl.className = "w-4 h-4 rounded-full z-10 bg-slate-700";
-                    distEl.className = "text-lg font-black text-slate-500 font-mono";
-                    cardEl.style.opacity = "0.15";
                 } else {
                     dotEl.className = "w-4 h-4 rounded-full z-10 bg-slate-600";
                     distEl.className = "text-lg font-black text-slate-200 font-mono";
@@ -536,9 +532,11 @@
                 }
             });
 
+            // 毫秒級 Transform 連續位移
             const track = document.getElementById("scroll-track");
             track.style.transform = `translateY(${targetY}px)`;
 
+            // 下方綠線面板數據
             const dirLabel = getDirectionText(currentRouteKey, direction);
             document.getElementById("bottom-info-main").innerText = `📍 目前位置: ${currentKM.toFixed(2)} K (${dirLabel})`;
             document.getElementById("bottom-info-sub").innerText = `距下個出口 (${nextExit.name}) ${Math.abs(nextExit.km - currentKM).toFixed(2)} km`;
