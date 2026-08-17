@@ -15,57 +15,55 @@
         .highway-sign {
             background-color: #007A3D;
             border: 2px solid #FFFFFF;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
         }
     </style>
 </head>
-<body class="bg-[#0f172a] text-white min-h-screen flex flex-col p-4 justify-between select-none">
+<body class="bg-[#0f172a] text-white min-h-screen flex flex-col p-3 justify-between select-none">
 
-    <!-- 頂部資訊列 -->
-    <header class="bg-[#1e293b] border border-slate-700/80 rounded-2xl p-4 flex justify-between items-center shadow-xl">
+    <!-- 頂部資訊列：滿版滿幅，突出顯示車速與當前里程 -->
+    <header class="bg-[#1e293b] border border-slate-700/80 rounded-2xl p-4 flex justify-between items-center shadow-xl mb-3">
         <div class="flex items-center space-x-3">
-            <div class="bg-[#007A3D] border border-white/80 text-white font-black px-2.5 py-1 rounded-lg text-sm tracking-wider shadow">
+            <div class="bg-[#007A3D] border border-white/80 text-white font-black px-3 py-1 rounded-lg text-base tracking-wider shadow">
                 國1
             </div>
             <div>
-                <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">目前位置</div>
-                <div id="current-km" class="text-2xl font-black text-emerald-400 font-mono">--.- K</div>
+                <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">目前位置</div>
+                <div id="current-km" class="text-3xl font-black text-emerald-400 font-mono">--.- K</div>
             </div>
         </div>
-        <div class="text-right flex items-baseline space-x-1 bg-slate-900/90 px-3.5 py-1.5 rounded-xl border border-slate-700/50">
-            <span id="current-speed" class="text-2xl font-black text-white font-mono">0</span>
+        <div class="text-right flex items-baseline space-x-1 bg-slate-900 px-4 py-1.5 rounded-xl border border-slate-700">
+            <span id="current-speed" class="text-3xl font-black text-white font-mono">0</span>
             <span class="text-xs font-bold text-slate-400">km/h</span>
         </div>
     </header>
 
-    <!-- 主體：動態路線與即時車速卡片 -->
-    <main class="my-auto py-4 flex-1 flex flex-col justify-center">
-        <div class="bg-[#1e293b]/90 border border-slate-700/80 rounded-3xl p-5 shadow-2xl backdrop-blur relative overflow-hidden">
-            
-            <div class="text-center text-xs font-bold text-slate-400 tracking-wider mb-4 border-b border-slate-700/60 pb-2.5 flex justify-between items-center px-1">
-                <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>前方即時路況</span>
-                <span id="direction-tag" class="bg-blue-600/30 text-blue-400 border border-blue-500/30 px-2.5 py-0.5 rounded-md text-[11px] font-bold">南下</span>
-            </div>
-
-            <!-- 動態進度軌道與交流道清單 -->
-            <div id="timeline-container" class="relative pl-7 space-y-5">
-                <div class="text-center text-slate-500 py-8 text-sm">搜尋 GPS 定位中...</div>
-            </div>
-
+    <!-- 主體：滿版放大路線軸 (下一個閘道在最上方) -->
+    <main class="flex-1 bg-[#1e293b]/90 border border-slate-700/80 rounded-2xl p-4 shadow-2xl flex flex-col justify-between relative overflow-hidden">
+        
+        <!-- 頂部狀態列 -->
+        <div class="text-xs font-bold text-slate-400 tracking-wider border-b border-slate-700/60 pb-2 flex justify-between items-center">
+            <span class="flex items-center"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>前方即時路況</span>
+            <span id="direction-tag" class="bg-blue-600/30 text-blue-400 border border-blue-500/30 px-3 py-0.5 rounded-md text-xs font-bold">南下</span>
         </div>
+
+        <!-- 動態路線與汽車位置主區域 (全高延展) -->
+        <div id="timeline-container" class="relative flex-1 my-3 pl-8 flex flex-col justify-between">
+            <div class="text-center text-slate-500 my-auto text-base">搜尋 GPS 定位中...</div>
+        </div>
+
     </main>
 
     <!-- 頁尾狀態列 -->
-    <footer class="text-center text-[11px] text-slate-500 pb-1">
+    <footer class="text-center text-xs text-slate-500 pt-2 pb-1">
         <span id="status-text">請允許位置存取以啟動即時追蹤</span>
     </footer>
 
     <script>
-        // 含模擬即時車速 (trafficSpeed) 的交流道資料庫
         const highwayData = [
             { "id": "34", "freeway": "國道1號", "name": "高公局", "direction": "S", "km": 34.1, "lat": 25.053, "lng": 121.430, "trafficSpeed": 88 },
-            { "id": "35", "freeway": "國道1號", "name": "泰山轉接", "direction": "S", "km": 35.8, "lat": 25.057, "lng": 121.420, "trafficSpeed": 35 }, // 壅塞範例
-            { "id": "41", "freeway": "國道1號", "name": "林口", "direction": "S", "km": 41.5, "lat": 25.068, "lng": 121.364, "trafficSpeed": 62 },    // 車多範例
+            { "id": "35", "freeway": "國道1號", "name": "泰山轉接", "direction": "S", "km": 35.8, "lat": 25.057, "lng": 121.420, "trafficSpeed": 35 },
+            { "id": "41", "freeway": "國道1號", "name": "林口", "direction": "S", "km": 41.5, "lat": 25.068, "lng": 121.364, "trafficSpeed": 62 },
             { "id": "49", "freeway": "國道1號", "name": "桃園", "direction": "S", "km": 49.1, "lat": 25.034, "lng": 121.298, "trafficSpeed": 92 },
             { "id": "52", "freeway": "國道1號", "name": "機場系統", "direction": "S", "km": 52.5, "lat": 25.031, "lng": 121.282, "trafficSpeed": 85 },
             { "id": "57", "freeway": "國道1號", "name": "中壢", "direction": "S", "km": 57.0, "lat": 24.981, "lng": 121.242, "trafficSpeed": 90 },
@@ -157,72 +155,95 @@
             );
         }
 
-        // 根據即時車速判斷路況顏色與標籤
         function getTrafficBadge(speed) {
             if (speed >= 80) {
-                return `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded text-[11px] font-bold">${speed} km/h</span>`;
+                return `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded text-xs font-bold">${speed} km/h</span>`;
             } else if (speed >= 40) {
-                return `<span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded text-[11px] font-bold">${speed} km/h (車多)</span>`;
+                return `<span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded text-xs font-bold">${speed} km/h (車多)</span>`;
             } else {
-                return `<span class="bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded text-[11px] font-bold animate-pulse">${speed} km/h (壅塞)</span>`;
+                return `<span class="bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded text-xs font-bold animate-pulse">${speed} km/h (壅塞)</span>`;
             }
         }
 
         function renderTimelineUI(upcoming, currentKM, activeData) {
             const container = document.getElementById("timeline-container");
             if (upcoming.length === 0) {
-                container.innerHTML = `<div class="text-center text-slate-500 py-6">前方無更多閘道資訊</div>`;
+                container.innerHTML = `<div class="text-center text-slate-500 my-auto text-base">前方無更多閘道資訊</div>`;
                 return;
             }
 
+            // 最上方的下一個閘道 (Next Exit)
             const nextExit = upcoming[0];
+            // 最下方的剛剛經過閘道 (Previous Exit)
             const prevExit = activeData.filter(i => (activeData[0].direction === 'S' ? i.km <= currentKM : i.km >= currentKM)).pop() || activeData[0];
-            
-            // 計算車子在目前路段上的前進百分比 (%)
+
+            // 正確計算車子進度 (由下向上移動)：
+            // 當前位置離上個閘道越遠，進度百分比越高 (0% 靠近下方剛經過閘道，100% 靠近上方下一個閘道)
             const totalSegmentKM = Math.abs(nextExit.km - prevExit.km) || 1;
             const progressKM = Math.abs(currentKM - prevExit.km);
-            let carPercent = Math.min(100, Math.max(0, (progressKM / totalSegmentKM) * 100));
+            let progressPercent = Math.min(100, Math.max(0, (progressKM / totalSegmentKM) * 100));
+
+            // 車子定位點（下邊距由 10% 到 90% 之間平滑上升）
+            const carBottomPosition = 10 + (progressPercent * 0.8);
+
+            // 前方預覽顯示（最多顯示上方 3 個未來的閘道 + 最底下 1 個剛過的閘道）
+            const displayUpcoming = upcoming.slice(0, 3);
 
             let html = `
-                <!-- 路線軸背景軌道 -->
-                <div class="absolute left-2.5 top-3 bottom-3 w-1 bg-slate-700/80 rounded-full"></div>
+                <!-- 垂直貫穿路線軌道 -->
+                <div class="absolute left-3 top-2 bottom-2 w-1.5 bg-slate-700 rounded-full"></div>
 
-                <!-- 🚗 動態汽車 Icon (隨位置平滑移動) -->
-                <div class="absolute left-0.5 w-5 h-5 bg-amber-400 rounded-full flex items-center justify-center text-black text-[10px] shadow-lg shadow-amber-400/50 transition-all duration-1000 z-10" 
-                     style="top: calc(${carPercent}% * 0.7 + 10px);">
+                <!-- 🚗 車子動態 Icon (由下往上移動，靠近頂部下一個閘道) -->
+                <div class="absolute left-0.5 w-6 h-6 bg-amber-400 border-2 border-white rounded-full flex items-center justify-center text-black text-xs shadow-lg shadow-amber-400/50 transition-all duration-1000 z-20" 
+                     style="bottom: ${carBottomPosition}%;">
                     🚗
                 </div>
             `;
 
-            const displayList = upcoming.slice(0, 3);
-            displayList.forEach((item, index) => {
+            // 渲染前方閘道 (顯示順序：最遠的在最上方 $\rightarrow$ 下一個閘道在靠近上方處)
+            displayUpcoming.reverse().forEach((item, revIndex) => {
+                const index = displayUpcoming.length - 1 - revIndex;
                 const dist = Math.abs(item.km - currentKM).toFixed(1);
                 const estTime = Math.ceil(dist * 0.7);
                 const isNext = index === 0;
 
                 html += `
-                    <div class="relative flex items-center justify-between z-0">
-                        <!-- 節點標示 -->
-                        <div class="absolute -left-7 w-3.5 h-3.5 rounded-full ${isNext ? 'bg-emerald-400 ring-4 ring-emerald-400/30' : 'bg-slate-600'}"></div>
+                    <div class="relative flex items-center justify-between z-10 my-2">
+                        <!-- 路線軸節點標示 -->
+                        <div class="absolute -left-8 w-4 h-4 rounded-full ${isNext ? 'bg-amber-400 ring-4 ring-amber-400/30 animate-pulse' : 'bg-slate-600'}"></div>
                         
-                        <!-- 國道綠標牌 + 路況車速 -->
+                        <!-- 國道指示牌與路況 -->
                         <div class="flex items-center space-x-2">
-                            <div class="highway-sign text-white px-3 py-1.5 rounded-xl font-bold flex items-center space-x-2 shadow-md">
-                                <span class="text-xs font-black border-r border-white/40 pr-1.5 font-mono">${item.id.replace('N','')}</span>
-                                <span class="text-sm font-extrabold tracking-wider">${item.name}</span>
+                            <div class="highway-sign text-white px-3.5 py-2 rounded-xl font-bold flex items-center space-x-2 shadow-lg ${isNext ? 'scale-105 border-amber-300' : 'opacity-85'}">
+                                <span class="text-sm font-black border-r border-white/40 pr-2 font-mono">${item.id.replace('N','')}</span>
+                                <span class="text-lg font-black tracking-wider">${item.name}</span>
                             </div>
-                            <!-- 即時路況顏色與車速標籤 -->
                             ${getTrafficBadge(item.trafficSpeed)}
                         </div>
 
-                        <!-- 距離與時間 -->
+                        <!-- 距離與預估時間 -->
                         <div class="text-right">
-                            <div class="text-base font-black ${isNext ? 'text-amber-400 font-mono' : 'text-slate-200 font-mono'}">${dist} <span class="text-[10px] text-slate-400">km</span></div>
-                            <div class="text-[10px] font-bold text-slate-400">約 ${estTime} 分</div>
+                            <div class="text-xl font-black ${isNext ? 'text-amber-400 font-mono' : 'text-slate-200 font-mono'}">${dist} <span class="text-xs text-slate-400">km</span></div>
+                            <div class="text-xs font-bold text-slate-400">約 ${estTime} 分</div>
                         </div>
                     </div>
                 `;
             });
+
+            // 最下方：剛經過的交流道 (作為參考基準)
+            if (prevExit && prevExit.id !== nextExit.id) {
+                html += `
+                    <div class="relative flex items-center justify-between opacity-50 z-10 pt-4 border-t border-slate-700/50">
+                        <div class="absolute -left-8 w-3 h-3 rounded-full bg-slate-600"></div>
+                        <div class="flex items-center space-x-2">
+                            <div class="bg-slate-800 text-slate-300 border border-slate-600 px-3 py-1 rounded-lg text-sm font-bold">
+                                ${prevExit.name} (已過)
+                            </div>
+                        </div>
+                        <div class="text-xs font-bold text-slate-400 font-mono">${prevExit.km.toFixed(1)} K</div>
+                    </div>
+                `;
+            }
 
             container.innerHTML = html;
         }
