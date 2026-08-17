@@ -57,7 +57,7 @@
             <span id="direction-tag" class="bg-blue-600/30 text-blue-400 border border-blue-500/30 px-3 py-0.5 rounded-md text-xs font-bold">自動辨識方向</span>
         </div>
 
-        <!-- 路線軸主區域 -->
+        <!-- 路線軸主區域 (置底綠線物理邊界對齊) -->
         <div id="timeline-container" class="relative flex-1 my-3 flex flex-col justify-between overflow-hidden">
             <div class="text-center text-slate-500 my-auto text-base">搜尋 GPS 定位中...</div>
         </div>
@@ -68,7 +68,7 @@
     <div id="sim-panel" class="hidden my-2 bg-slate-800 border border-amber-500/50 rounded-xl p-3 text-xs space-y-2">
         <div class="font-bold text-amber-400 flex justify-between items-center">
             <span>⚙️ 模擬參數設定</span>
-            <span class="text-[10px] text-slate-400">國1/國3全線模擬模式</span>
+            <span class="text-[10px] text-slate-400">全線無限平滑滾動模式</span>
         </div>
         <div class="grid grid-cols-3 gap-2">
             <div>
@@ -427,7 +427,7 @@
             }
         }
 
-        // 渲染核心 (固定 pl-12 內距，確保圓點 100% 居中且與路牌安全拉開距離)
+        // 精準極致渲染：100% 絕對左側邊距，平滑無限動態滾動，觸碰綠線即刻過站
         function renderTimelineUI(upcoming, currentKM, activeData, direction) {
             const container = document.getElementById("timeline-container");
             if (upcoming.length === 0) {
@@ -441,18 +441,20 @@
             const isExpress = routesDatabase[currentRouteKey].express;
             const signClass = isExpress ? "express-sign" : "highway-sign";
 
+            // 計算在該區間內的進度比例 (0.0 ~ 1.0)
             const segmentTotal = Math.abs(nextExit.km - prevExit.km) || 1;
             const segmentProgress = Math.abs(currentKM - prevExit.km);
             const progressRatio = Math.min(1.0, Math.max(0.0, segmentProgress / segmentTotal));
 
-            const gateYOffset = progressRatio * 48;
+            // 精準物理下推位移量 (最大 52px，確保抵達 0.00km 時黃色圓點 bottom 邊緣剛好貼合綠線)
+            const gateYOffset = progressRatio * 52;
 
             let html = `
-                <!-- 縱向灰色軸線：精準對齊 left-[20px] 延伸至綠線 -->
-                <div class="absolute left-[20px] top-3 bottom-[42px] w-1.5 bg-slate-700 rounded-full -translate-x-1/2 z-0"></div>
+                <!-- 縱向灰色軸線：精準固定在 left-4 (16px) 延伸至綠線 -->
+                <div class="absolute left-4 top-3 bottom-[42px] w-1.5 bg-slate-700 rounded-full -translate-x-1/2 z-0"></div>
 
-                <!-- 前方閘道卡片容器 (下推推進) -->
-                <div class="flex-1 flex flex-col justify-between relative z-10 my-1 pb-2 transition-transform duration-300 ease-linear" 
+                <!-- 前方閘道卡片容器 (平滑下推靠近綠線) -->
+                <div class="flex-1 flex flex-col justify-between relative z-10 my-1 pb-1 transition-transform duration-300 ease-linear" 
                      style="transform: translateY(${gateYOffset}px);">
             `;
 
@@ -463,12 +465,12 @@
                 const isNext = index === 0;
 
                 html += `
-                    <!-- 固定 pl-12 (48px 左內距)，確保標牌不往左擴展壓到圓點 -->
-                    <div class="relative flex items-center justify-between min-h-[44px] pl-12">
-                        <!-- 圓點：絕對定位強行釘鎖在 left-[20px] 軸心 -->
-                        <div class="absolute left-[20px] top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full z-20 ${isNext ? 'bg-amber-400 ring-4 ring-amber-400/30' : 'bg-slate-600'}"></div>
+                    <!-- ml-8 強制向右開出 32px 絕對安全防線，徹底隔絕 left-4 圓點 -->
+                    <div class="relative flex items-center justify-between min-h-[44px] ml-8">
+                        <!-- 圓點：精準鎖定在 absolute left-4，100% 壓在灰色軌道軸心 -->
+                        <div class="absolute -left-8 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full z-20 ${isNext ? 'bg-amber-400 ring-4 ring-amber-400/30' : 'bg-slate-600'}"></div>
                         
-                        <!-- 路牌標籤與即時車速 (shrink-0 保護左側邊距) -->
+                        <!-- 路牌標籤與即時車速 -->
                         <div class="flex items-center space-x-2 overflow-hidden shrink-0">
                             <div class="${signClass} text-white px-3 py-1.5 rounded-xl font-bold flex items-center space-x-2 shadow-lg ${isNext ? 'scale-105 border-amber-300' : 'opacity-85'}">
                                 <span class="text-xs md:text-sm font-black border-r border-white/40 pr-1.5 font-mono">${item.id.replace('N','')}</span>
@@ -488,11 +490,11 @@
 
             html += `</div>`;
 
-            // 最下方：以綠色橫線作為「駕駛當前位置絕對線」
+            // 最下方：綠色橫線即為駕駛當前位置絕對線
             const dirLabel = getDirectionText(currentRouteKey, direction);
 
             html += `
-                <div class="relative z-20 mt-auto pt-2.5 border-t-2 border-emerald-500 flex flex-col items-start pl-12 justify-center bg-[#1e293b]/95">
+                <div class="relative z-20 mt-auto pt-2.5 border-t-2 border-emerald-500 flex flex-col items-start ml-8 justify-center bg-[#1e293b]/95">
                     <div class="bg-emerald-950/95 border border-emerald-500/80 text-emerald-300 px-3.5 py-1.5 rounded-xl shadow-2xl leading-tight max-w-full truncate">
                         <div class="text-emerald-300 font-black text-xs md:text-sm tracking-wide truncate">📍 目前位置: ${currentKM.toFixed(2)} K (${dirLabel})</div>
                         <div class="text-[10px] text-emerald-400/90 font-bold mt-0.5 truncate">距下個出口 (${nextExit.name}) ${Math.abs(nextExit.km - currentKM).toFixed(2)} km</div>
