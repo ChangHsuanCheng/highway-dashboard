@@ -1,0 +1,25 @@
+[
+  { "id": "N1-001", "freeway": "國道1號", "name": "基隆端", "direction": "S", "km": 0.0, "lat": 25.128, "lng": 121.740 },
+  { "id": "N1-025", "freeway": "國道1號", "name": "台北", "direction": "S", "km": 25.1, "lat": 25.071, "lng": 121.516 },
+  { "id": "N1-033", "freeway": "國道1號", "name": "五股", "direction": "S", "km": 33.1, "lat": 25.060, "lng": 121.438 },
+  { "id": "N1-052", "freeway": "國道1號", "name": "機場系統", "direction": "S", "km": 52.5, "lat": 25.031, "lng": 121.282 },
+  { "id": "N1-069", "freeway": "國道1號", "name": "楊梅", "direction": "S", "km": 69.2, "lat": 24.908, "lng": 121.147 },
+  { "id": "N1-083", "freeway": "國道1號", "name": "湖口", "direction": "S", "km": 83.5, "lat": 24.896, "lng": 121.045 },
+  { "id": "N1-091", "freeway": "國道1號", "name": "竹北", "direction": "S", "km": 91.0, "lat": 24.839, "lng": 121.011 },
+  { "id": "N1-095", "freeway": "國道1號", "name": "新竹", "direction": "S", "km": 95.5, "lat": 24.798, "lng": 120.997 },
+  { "id": "N1-110", "freeway": "國道1號", "name": "頭份", "direction": "S", "km": 110.4, "lat": 24.689, "lng": 120.908 },
+  { "id": "N1-178", "freeway": "國道1號", "name": "台中", "direction": "S", "km": 178.6, "lat": 24.170, "lng": 120.635 },
+  { "id": "N1-367", "freeway": "國道1號", "name": "高雄", "direction": "S", "km": 367.0, "lat": 22.628, "lng": 120.332 },
+  
+  { "id": "N1-367N", "freeway": "國道1號", "name": "高雄", "direction": "N", "km": 367.0, "lat": 22.628, "lng": 120.332 },
+  { "id": "N1-178N", "freeway": "國道1號", "name": "台中", "direction": "N", "km": 178.6, "lat": 24.170, "lng": 120.635 },
+  { "id": "N1-110N", "freeway": "國道1號", "name": "頭份", "direction": "N", "km": 110.4, "lat": 24.689, "lng": 120.908 },
+  { "id": "N1-095N", "freeway": "國道1號", "name": "新竹", "direction": "N", "km": 95.5, "lat": 24.798, "lng": 120.997 },
+  { "id": "N1-091N", "freeway": "國道1號", "name": "竹北", "direction": "N", "km": 91.0, "lat": 24.839, "lng": 121.011 },
+  { "id": "N1-083N", "freeway": "國道1號", "name": "湖口", "direction": "N", "km": 83.5, "lat": 24.896, "lng": 121.045 },
+  { "id": "N1-069N", "freeway": "國道1號", "name": "楊梅", "direction": "N", "km": 69.2, "lat": 24.908, "lng": 121.147 },
+  { "id": "N1-052N", "freeway": "國道1號", "name": "機場系統", "direction": "N", "km": 52.5, "lat": 25.031, "lng": 121.282 },
+  { "id": "N1-033N", "freeway": "國道1號", "name": "五股", "direction": "N", "km": 33.1, "lat": 25.060, "lng": 121.438 },
+  { "id": "N1-025N", "freeway": "國道1號", "name": "台北", "direction": "N", "km": 25.1, "lat": 25.071, "lng": 121.516 },
+  { "id": "N1-001N", "freeway": "國道1號", "name": "基隆端", "direction": "N", "km": 0.0, "lat": 25.128, "lng": 121.740 }
+]
