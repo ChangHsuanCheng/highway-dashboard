@@ -57,12 +57,12 @@
             <span id="direction-tag" class="bg-blue-600/30 text-blue-400 border border-blue-500/30 px-3 py-0.5 rounded-md text-xs font-bold">自動辨識方向</span>
         </div>
 
-        <!-- 路線軸主區域 (貫穿軸線 + 4站平滑滑動佇列) -->
+        <!-- 路線軸主區域 (貫穿軸線 + 4站零閃爍滑動佇列) -->
         <div id="timeline-container" class="relative flex-1 my-2 flex flex-col justify-between overflow-hidden">
             <!-- 貫穿縱向軸線 (絕對層，絕不斷線) -->
             <div class="absolute left-[18px] top-0 bottom-[40px] w-1.5 bg-slate-700/80 rounded-full -translate-x-1/2 z-0"></div>
 
-            <!-- 動態滾動隊列容器 (採用 Smooth Transform 移動) -->
+            <!-- 動態滾動隊列容器 (採用持久化 DOM + Transform 平滑移動) -->
             <div id="scroll-track" class="flex-1 flex flex-col justify-between relative z-10 my-1 pb-1 transition-transform duration-200 ease-linear">
                 <div class="text-center text-slate-500 my-auto text-base">搜尋 GPS 定位中...</div>
             </div>
@@ -203,6 +203,7 @@
         let isSimulation = false;
         let simInterval = null;
         let simCurrentKM = 41.5;
+        let currentWindowIds = []; // 紀錄當前 DOM 視窗鎖定的卡片 ID 序列
 
         function getDirectionText(routeKey, directionCode) {
             const rType = routesDatabase[routeKey].type;
@@ -266,6 +267,7 @@
             } else {
                 simDirSelect.innerHTML = `<option value="S">東向</option><option value="N">西向</option>`;
             }
+            currentWindowIds = []; // 清空 DOM 視窗
         }
 
         function autoDetectRoute(lat, lng) {
@@ -387,7 +389,10 @@
             updateRouteBadge(document.getElementById("sim-route").value);
             if (isSimulation) startSimulationLoop();
         });
-        document.getElementById("sim-dir").addEventListener("change", () => { if (isSimulation) startSimulationLoop(); });
+        document.getElementById("sim-dir").addEventListener("change", () => { 
+            currentWindowIds = [];
+            if (isSimulation) startSimulationLoop(); 
+        });
 
         updateRouteBadge("國1");
 
@@ -434,11 +439,11 @@
             }
         }
 
-        // 終極流暢連續滾動渲染引擎 (4卡片滑動佇列 + 0.00km 貼線幾何對齊)
+        // 核心滾動引擎：維持固定視窗 DOM 結構，僅於過站時滑動替換，扣貼綠線
         function renderTimelineUI(currentKM, activeData, direction) {
             const track = document.getElementById("scroll-track");
-            
-            // 找出未過站的前方出口
+
+            // 尋找未過站的前方出口
             let upcoming = [];
             if (direction === "S") {
                 upcoming = activeData.filter(item => item.km > currentKM).sort((a, b) => a.km - b.km);
@@ -451,67 +456,76 @@
                 return;
             }
 
-            // 取出剛過站的 1 個出口 + 前方 3 個出口 (共 4 個組成連續滾動視窗)
             const nextExit = upcoming[0];
             const prevExit = activeData.filter(i => (direction === 'S' ? i.km <= currentKM : i.km >= currentKM)).pop() || activeData[0];
-            
+
+            // 組合「剛過站 1 站 + 前方 3 站」組成的滑動佇列（共 4 站）
             const displayUpcoming = [prevExit, ...upcoming.slice(0, 3)];
+            const newWindowIds = displayUpcoming.map(i => i.id).join(',');
+
             const isExpress = routesDatabase[currentRouteKey].express;
             const signClass = isExpress ? "express-sign" : "highway-sign";
 
-            // 計算目前區間進度比例 (0.0 ~ 1.0)
+            // 計算在該區間內的進度比例 (0.0 ~ 1.0)
             const segmentTotal = Math.abs(nextExit.km - prevExit.km) || 1;
             const segmentProgress = Math.abs(currentKM - prevExit.km);
             const progressRatio = Math.min(1.0, Math.max(0.0, segmentProgress / segmentTotal));
 
-            // 精確幾何位移算式：預設整體下推，當 progressRatio = 1.0 (距 0.00km) 時，Index 1 卡片底邊精準壓貼綠線
-            const gateYOffset = progressRatio * 52;
+            // 精確幾何位移量：卡片列高為 48px，下推量為 progressRatio * 48px，當剩餘 0.00km (progressRatio=1) 時，Next Exit 底邊精準壓貼綠線
+            const gateYOffset = progressRatio * 48;
 
-            let html = "";
-            displayUpcoming.reverse().forEach((item, revIndex) => {
-                const index = displayUpcoming.length - 1 - revIndex;
-                const distVal = Math.abs(item.km - currentKM);
-                const dist = distVal.toFixed(1);
-                const estTime = Math.ceil(distVal * 0.7);
+            // 只在視窗站點 ID 改變時（即真正過站時），才更新 DOM 結構（避免每一幀重刷）
+            if (currentWindowIds.join(',') !== newWindowIds) {
+                currentWindowIds = displayUpcoming.map(i => i.id);
+                let html = "";
+                displayUpcoming.reverse().forEach((item, revIndex) => {
+                    const index = displayUpcoming.length - 1 - revIndex;
+                    const isNext = item.id === nextExit.id;
+                    const isPassed = (direction === 'S' ? item.km <= currentKM : item.km >= currentKM) && !isNext;
 
-                const isPassed = (direction === 'S' ? item.km <= currentKM : item.km >= currentKM);
-                const isNext = item.id === nextExit.id;
-
-                let rowStyle = "opacity-100";
-                if (isPassed && item.id !== nextExit.id) {
-                    rowStyle = "opacity-30"; // 剛過的卡片向下滑出綠線並淡出
-                }
-
-                html += `
-                    <div class="grid grid-cols-[36px_1fr_auto] items-center min-h-[48px] relative transition-opacity duration-300 ${rowStyle}">
-                        <!-- Col 1: 圓點標點 (軌道線上記疊) -->
-                        <div class="relative h-full flex items-center justify-center">
-                            <div class="w-4 h-4 rounded-full z-10 ${isNext ? 'bg-amber-400 ring-4 ring-amber-400/30' : 'bg-slate-600'}"></div>
-                        </div>
-
-                        <!-- Col 2: 路牌標籤與即時車速 -->
-                        <div class="flex items-center space-x-2 overflow-hidden pl-1">
-                            <div class="${signClass} text-white px-3 py-1.5 rounded-xl font-bold flex items-center space-x-2 shadow-lg ${isNext ? 'scale-105 border-amber-300' : 'opacity-85'}">
-                                <span class="text-xs md:text-sm font-black border-r border-white/40 pr-1.5 font-mono">${item.id.replace('N','')}</span>
-                                <span class="text-sm md:text-base font-extrabold tracking-wider whitespace-nowrap break-keep">${item.name}</span>
+                    html += `
+                        <div id="card-row-${item.id}" class="grid grid-cols-[36px_1fr_auto] items-center min-h-[48px] relative transition-opacity duration-300 ${isPassed ? 'opacity-30' : 'opacity-100'}">
+                            <!-- Col 1: 圓點標點 -->
+                            <div class="relative h-full flex items-center justify-center">
+                                <div id="card-dot-${item.id}" class="w-4 h-4 rounded-full z-10 ${isNext ? 'bg-amber-400 ring-4 ring-amber-400/30' : 'bg-slate-600'}"></div>
                             </div>
-                            ${getSpeedTag(item.segmentSpeed || 85)}
-                        </div>
 
-                        <!-- Col 3: 剩餘距離與預估時間 -->
-                        <div class="text-right pl-2 shrink-0">
-                            <div class="text-lg font-black ${isNext ? 'text-amber-400 font-mono' : 'text-slate-200 font-mono'}">${dist} <span class="text-xs text-slate-400">km</span></div>
-                            <div class="text-xs font-bold text-slate-400">約 ${estTime} 分</div>
+                            <!-- Col 2: 路牌標籤與即時車速 -->
+                            <div class="flex items-center space-x-2 overflow-hidden pl-1">
+                                <div class="${signClass} text-white px-3 py-1.5 rounded-xl font-bold flex items-center space-x-2 shadow-lg ${isNext ? 'scale-105 border-amber-300' : 'opacity-85'}">
+                                    <span class="text-xs md:text-sm font-black border-r border-white/40 pr-1.5 font-mono">${item.id.replace('N','')}</span>
+                                    <span class="text-sm md:text-base font-extrabold tracking-wider whitespace-nowrap break-keep">${item.name}</span>
+                                </div>
+                                ${getSpeedTag(item.segmentSpeed || 85)}
+                            </div>
+
+                            <!-- Col 3: 剩餘距離與預估時間 -->
+                            <div class="text-right pl-2 shrink-0">
+                                <div id="card-dist-${item.id}" class="text-lg font-black ${isNext ? 'text-amber-400 font-mono' : 'text-slate-200 font-mono'}">-- <span class="text-xs text-slate-400">km</span></div>
+                                <div id="card-time-${item.id}" class="text-xs font-bold text-slate-400">--</div>
+                            </div>
                         </div>
-                    </div>
-                `;
+                    `;
+                });
+                track.innerHTML = html;
+            }
+
+            // 每一影幀僅更新文字與 Transform 位移 (毫秒級極速、完全無閃爍)
+            displayUpcoming.forEach(item => {
+                const distEl = document.getElementById(`card-dist-${item.id}`);
+                const timeEl = document.getElementById(`card-time-${item.id}`);
+                if (distEl && timeEl) {
+                    const distVal = Math.abs(item.km - currentKM);
+                    const estTime = Math.ceil(distVal * 0.7);
+                    distEl.innerHTML = `${distVal.toFixed(1)} <span class="text-xs text-slate-400">km</span>`;
+                    timeEl.innerText = `約 ${estTime} 分`;
+                }
             });
 
-            // 連續 Transform 物理推進 (不重刷 DOM 節點，完全消除硬跳)
+            // 物理 Transform 滑動推進
             track.style.transform = `translateY(${gateYOffset}px)`;
-            track.innerHTML = html;
 
-            // 更新最下方駕駛綠線資訊
+            // 最下方綠線數據
             const dirLabel = getDirectionText(currentRouteKey, direction);
             document.getElementById("bottom-info-main").innerText = `📍 目前位置: ${currentKM.toFixed(2)} K (${dirLabel})`;
             document.getElementById("bottom-info-sub").innerText = `距下個出口 (${nextExit.name}) ${Math.abs(nextExit.km - currentKM).toFixed(2)} km`;
