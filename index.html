@@ -27,9 +27,10 @@
         }
     </style>
 </head>
-<body class="bg-[#0f172a] text-white min-h-screen flex flex-col p-3 justify-between select-none">
+<body class="bg-[#0f172a] text-white min-h-screen flex flex-col p-3 justify-between select-none overflow-hidden">
 
-    <header class="bg-[#1e293b] border border-slate-700/80 rounded-2xl p-4 flex justify-between items-center shadow-xl mb-3">
+    <!-- 頂部資訊列 (固定視窗最上方) -->
+    <header class="bg-[#1e293b] border border-slate-700/80 rounded-2xl p-4 flex justify-between items-center shadow-xl mb-3 shrink-0">
         <div class="flex items-center space-x-3">
             <div id="route-badge" class="bg-[#007A3D] text-white font-black px-3 py-1 rounded-xl text-base tracking-wider shadow border border-white/80">
                 國1
@@ -47,9 +48,11 @@
         </div>
     </header>
 
-    <main class="flex-1 bg-[#1e293b]/90 border border-slate-700/80 rounded-2xl p-4 shadow-2xl flex flex-col justify-between relative overflow-hidden">
+    <!-- 主體：極簡路線軸 (嚴格高度約束，絕不推擠頁面) -->
+    <main class="flex-1 bg-[#1e293b]/90 border border-slate-700/80 rounded-2xl p-4 shadow-2xl flex flex-col justify-between relative overflow-hidden max-h-[360px]">
         
-        <div class="text-xs font-bold text-slate-400 tracking-wider border-b border-slate-700/60 pb-2 flex justify-between items-center z-10">
+        <!-- 頂部狀態列 -->
+        <div class="text-xs font-bold text-slate-400 tracking-wider border-b border-slate-700/60 pb-2 flex justify-between items-center z-10 shrink-0">
             <span class="flex items-center">
                 <span id="api-status-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
                 <span id="api-status-text">TDX 即時路況連線中...</span>
@@ -57,14 +60,18 @@
             <span id="direction-tag" class="bg-blue-600/30 text-blue-400 border border-blue-500/30 px-3 py-0.5 rounded-md text-xs font-bold">自動辨識方向</span>
         </div>
 
+        <!-- 路線軸主區域 (固定幾何視窗，內部無限滾動) -->
         <div id="timeline-container" class="relative flex-1 my-2 flex flex-col justify-end overflow-hidden h-[210px]">
+            <!-- 貫穿縱向軸線 -->
             <div class="absolute left-[18px] top-0 bottom-[40px] w-1.5 bg-slate-700/80 rounded-full -translate-x-1/2 z-0"></div>
 
+            <!-- 動態平滑滾動軸 -->
             <div id="scroll-track" class="relative z-10 w-full transition-transform duration-200 ease-linear">
                 <div class="text-center text-slate-500 my-auto text-base">搜尋 GPS 定位中...</div>
             </div>
 
-            <div class="relative z-20 mt-auto pt-2 border-t-4 border-emerald-500 flex flex-col items-start pl-9 justify-center bg-[#1e293b]/95">
+            <!-- 最下方：駕駛位置綠線 (最近閘道扣貼目標) -->
+            <div class="relative z-20 mt-auto pt-2 border-t-4 border-emerald-500 flex flex-col items-start pl-9 justify-center bg-[#1e293b]/95 shrink-0">
                 <div class="bg-emerald-950/95 border border-emerald-500/80 text-emerald-300 px-3.5 py-1.5 rounded-xl shadow-2xl leading-tight max-w-full truncate">
                     <div id="bottom-info-main" class="text-emerald-300 font-black text-xs md:text-sm tracking-wide truncate">📍 目前位置: -- K</div>
                     <div id="bottom-info-sub" class="text-[10px] text-emerald-400/90 font-bold mt-0.5 truncate">距下個出口 -- km</div>
@@ -74,10 +81,11 @@
 
     </main>
 
-    <div id="sim-panel" class="hidden my-2 bg-slate-800 border border-amber-500/50 rounded-xl p-3 text-xs space-y-2">
+    <!-- 模擬行車控制選單面板 (固定於底部) -->
+    <div id="sim-panel" class="hidden my-2 bg-slate-800 border border-amber-500/50 rounded-xl p-3 text-xs space-y-2 shrink-0">
         <div class="font-bold text-amber-400 flex justify-between items-center">
             <span>⚙️ 模擬參數設定</span>
-            <span class="text-[10px] text-slate-400">零閃爍 + 可調Offset距離對齊</span>
+            <span class="text-[10px] text-slate-400">正確方向：近在下，遠在上</span>
         </div>
         <div class="grid grid-cols-3 gap-2">
             <div>
@@ -100,7 +108,8 @@
         </div>
     </div>
 
-    <footer class="flex justify-between items-center text-xs text-slate-500 pt-1 pb-1 px-1">
+    <!-- 頁尾狀態列與模擬測試開關 -->
+    <footer class="flex justify-between items-center text-xs text-slate-500 pt-1 pb-1 px-1 shrink-0">
         <span id="status-text">請允許位置存取以啟動即時追蹤</span>
         <button onclick="toggleSimulation()" id="sim-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center">
             🎮 模擬行車: OFF
@@ -109,9 +118,6 @@
 
     <script>
         // 🟢 綠線對齊距離偏差微調 (單位: px)
-        // 預設 0 代表卡片底邊剛好壓在綠線上
-        // - 正數（如 +10）：卡片會更往下滑，超過綠線才歸零
-        // - 負數（如 -10）：卡片會提早在綠線上方（距離綠線 10px 時）就顯示 0.0 km
         const LINE_OFFSET_PX = 70; 
 
         const routesDatabase = {
@@ -439,7 +445,6 @@
             }
         }
 
-        // 1. DOM 節點由遠到近排列 (遠的在最上面，最近要到的下個出口在最下面)
         function buildFullRouteDOM(activeNodes) {
             const track = document.getElementById("scroll-track");
             const isExpress = routesDatabase[currentRouteKey].express;
@@ -471,9 +476,7 @@
             track.innerHTML = html;
         }
 
-        // 2. 修正版平滑軸動引擎 (最近閘道扣貼底部綠線，推進時向下滑出)
         function renderTimelineUI(currentKM, activeData, direction) {
-            // DOM 排序：遠的在最上方，最近的在最下方 (接近綠線)
             if (lastBuiltRouteKey !== currentRouteKey || lastBuiltDirection !== direction) {
                 const sortedNodes = [...activeData].sort((a, b) => {
                     return direction === "S" ? b.km - a.km : a.km - b.km;
@@ -483,7 +486,6 @@
                 lastBuiltDirection = direction;
             }
 
-            // 找出未過之閘道 (Next Exit)
             let upcoming = [];
             if (direction === "S") {
                 upcoming = activeData.filter(item => item.km > currentKM).sort((a, b) => a.km - b.km);
@@ -496,25 +498,20 @@
             const nextExit = upcoming[0];
             const prevExit = activeData.filter(i => (direction === 'S' ? i.km <= currentKM : i.km >= currentKM)).pop() || activeData[0];
 
-            // 區間進度比例 (0.0 -> 1.0)
             const segmentTotal = Math.abs(nextExit.km - prevExit.km) || 1;
             const segmentProgress = Math.abs(currentKM - prevExit.km);
             const progressRatio = Math.min(1.0, Math.max(0.0, segmentProgress / segmentTotal));
 
-            // DOM 順序：遠 -> 近
             const sortedNodes = [...activeData].sort((a, b) => {
                 return direction === "S" ? b.km - a.km : a.km - b.km;
             });
 
-            // 找到 nextExit 在 DOM 中的索引
             const nextIndex = sortedNodes.findIndex(n => n.id === nextExit.id);
             const totalNodesCount = sortedNodes.length;
 
-            // 幾何對齊：將 nextExit 精確錨定在最底部的綠線上方，並隨進度向下推進 (progressRatio * 70px + LINE_OFFSET_PX)
             const cardHeight = 70;
             const targetY = -((nextIndex - (totalNodesCount - 3)) * cardHeight) + (progressRatio * cardHeight) + LINE_OFFSET_PX;
 
-            // 更新 DOM 狀態
             sortedNodes.forEach((item) => {
                 const cardEl = document.getElementById(`gate-card-${item.id}`);
                 const distEl = document.getElementById(`gate-dist-${item.id}`);
@@ -539,7 +536,7 @@
                 } else if (isPassed) {
                     dotEl.className = "w-4 h-4 rounded-full z-10 bg-slate-700";
                     distEl.className = "text-lg font-black text-slate-500 font-mono";
-                    cardEl.style.opacity = "0.15"; // 過站向下滑出綠線自動淡出
+                    cardEl.style.opacity = "0.15";
                 } else {
                     dotEl.className = "w-4 h-4 rounded-full z-10 bg-slate-600";
                     distEl.className = "text-lg font-black text-slate-200 font-mono";
@@ -547,11 +544,9 @@
                 }
             });
 
-            // 移動動態軌道
             const track = document.getElementById("scroll-track");
             track.style.transform = `translateY(${targetY}px)`;
 
-            // 下方資訊列
             const dirLabel = getDirectionText(currentRouteKey, direction);
             document.getElementById("bottom-info-main").innerText = `📍 目前位置: ${currentKM.toFixed(2)} K (${dirLabel})`;
             document.getElementById("bottom-info-sub").innerText = `距下個出口 (${nextExit.name}) ${Math.abs(nextExit.km - currentKM).toFixed(2)} km`;
