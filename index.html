@@ -9,13 +9,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { 
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang TC", "Microsoft JhengHei", sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "PingFang TC", sans-serif;
             -webkit-tap-highlight-color: transparent;
         }
-
-        /* 官方風格綠底白字指示牌 (移除梅花圖，純文字與官方綠) */
         .highway-sign {
-            background-color: #007A3D; /* 官方國道綠 */
+            background-color: #007A3D;
             border: 2px solid #FFFFFF;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
         }
@@ -23,10 +21,9 @@
 </head>
 <body class="bg-[#0f172a] text-white min-h-screen flex flex-col p-4 justify-between select-none">
 
-    <!-- 頂部資訊列：簡潔「國1」徽章 + 目前 K 數 + 縮小版車速 -->
+    <!-- 頂部資訊列 -->
     <header class="bg-[#1e293b] border border-slate-700/80 rounded-2xl p-4 flex justify-between items-center shadow-xl">
         <div class="flex items-center space-x-3">
-            <!-- 乾淨質感的國道1號文字徽章 -->
             <div class="bg-[#007A3D] border border-white/80 text-white font-black px-2.5 py-1 rounded-lg text-sm tracking-wider shadow">
                 國1
             </div>
@@ -41,17 +38,17 @@
         </div>
     </header>
 
-    <!-- 主體：極簡導航風格路線軸 -->
+    <!-- 主體：動態路線與即時車速卡片 -->
     <main class="my-auto py-4 flex-1 flex flex-col justify-center">
         <div class="bg-[#1e293b]/90 border border-slate-700/80 rounded-3xl p-5 shadow-2xl backdrop-blur relative overflow-hidden">
             
-            <div class="text-center text-xs font-bold text-slate-400 tracking-wider mb-5 border-b border-slate-700/60 pb-2.5 flex justify-between items-center px-1">
-                <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>前方出口預覽</span>
+            <div class="text-center text-xs font-bold text-slate-400 tracking-wider mb-4 border-b border-slate-700/60 pb-2.5 flex justify-between items-center px-1">
+                <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>前方即時路況</span>
                 <span id="direction-tag" class="bg-blue-600/30 text-blue-400 border border-blue-500/30 px-2.5 py-0.5 rounded-md text-[11px] font-bold">南下</span>
             </div>
 
-            <!-- 路線軸容器 -->
-            <div id="timeline-container" class="relative space-y-4">
+            <!-- 動態進度軌道與交流道清單 -->
+            <div id="timeline-container" class="relative pl-7 space-y-5">
                 <div class="text-center text-slate-500 py-8 text-sm">搜尋 GPS 定位中...</div>
             </div>
 
@@ -63,24 +60,22 @@
         <span id="status-text">請允許位置存取以啟動即時追蹤</span>
     </footer>
 
-    <!-- 邏輯腳本 -->
     <script>
+        // 含模擬即時車速 (trafficSpeed) 的交流道資料庫
         const highwayData = [
-            { "id": "34", "freeway": "國道1號", "name": "高公局", "direction": "S", "km": 34.1, "lat": 25.053, "lng": 121.430 },
-            { "id": "35", "freeway": "國道1號", "name": "泰山轉接道", "direction": "S", "km": 35.8, "lat": 25.057, "lng": 121.420 },
-            { "id": "41", "freeway": "國道1號", "name": "林口", "direction": "S", "km": 41.5, "lat": 25.068, "lng": 121.364 },
-            { "id": "49", "freeway": "國道1號", "name": "桃園", "direction": "S", "km": 49.1, "lat": 25.034, "lng": 121.298 },
-            { "id": "52", "freeway": "國道1號", "name": "機場系統", "direction": "S", "km": 52.5, "lat": 25.031, "lng": 121.282 },
-            { "id": "57", "freeway": "國道1號", "name": "中壢", "direction": "S", "km": 57.0, "lat": 24.981, "lng": 121.242 },
-            { "id": "69", "freeway": "國道1號", "name": "楊梅", "direction": "S", "km": 69.2, "lat": 24.908, "lng": 121.147 },
-
-            { "id": "69N", "freeway": "國道1號", "name": "楊梅", "direction": "N", "km": 69.2, "lat": 24.908, "lng": 121.147 },
-            { "id": "57N", "freeway": "國道1號", "name": "中壢", "direction": "N", "km": 57.0, "lat": 24.981, "lng": 121.242 },
-            { "id": "52N", "freeway": "國道1號", "name": "機場系統", "direction": "N", "km": 52.5, "lat": 25.031, "lng": 121.282 },
-            { "id": "49N", "freeway": "國道1號", "name": "桃園", "direction": "N", "km": 49.1, "lat": 25.034, "lng": 121.298 },
-            { "id": "41N", "freeway": "國道1號", "name": "林口", "direction": "N", "km": 41.5, "lat": 25.068, "lng": 121.364 },
-            { "id": "35N", "freeway": "國道1號", "name": "泰山轉接道", "direction": "N", "km": 35.8, "lat": 25.057, "lng": 121.420 },
-            { "id": "34N", "freeway": "國道1號", "name": "高公局", "direction": "N", "km": 34.1, "lat": 25.053, "lng": 121.430 }
+            { "id": "34", "freeway": "國道1號", "name": "高公局", "direction": "S", "km": 34.1, "lat": 25.053, "lng": 121.430, "trafficSpeed": 88 },
+            { "id": "35", "freeway": "國道1號", "name": "泰山轉接", "direction": "S", "km": 35.8, "lat": 25.057, "lng": 121.420, "trafficSpeed": 35 }, // 壅塞範例
+            { "id": "41", "freeway": "國道1號", "name": "林口", "direction": "S", "km": 41.5, "lat": 25.068, "lng": 121.364, "trafficSpeed": 62 },    // 車多範例
+            { "id": "49", "freeway": "國道1號", "name": "桃園", "direction": "S", "km": 49.1, "lat": 25.034, "lng": 121.298, "trafficSpeed": 92 },
+            { "id": "52", "freeway": "國道1號", "name": "機場系統", "direction": "S", "km": 52.5, "lat": 25.031, "lng": 121.282, "trafficSpeed": 85 },
+            { "id": "57", "freeway": "國道1號", "name": "中壢", "direction": "S", "km": 57.0, "lat": 24.981, "lng": 121.242, "trafficSpeed": 90 },
+            
+            { "id": "57N", "freeway": "國道1號", "name": "中壢", "direction": "N", "km": 57.0, "lat": 24.981, "lng": 121.242, "trafficSpeed": 90 },
+            { "id": "52N", "freeway": "國道1號", "name": "機場系統", "direction": "N", "km": 52.5, "lat": 25.031, "lng": 121.282, "trafficSpeed": 85 },
+            { "id": "49N", "freeway": "國道1號", "name": "桃園", "direction": "N", "km": 49.1, "lat": 25.034, "lng": 121.298, "trafficSpeed": 92 },
+            { "id": "41N", "freeway": "國道1號", "name": "林口", "direction": "N", "km": 41.5, "lat": 25.068, "lng": 121.364, "trafficSpeed": 62 },
+            { "id": "35N", "freeway": "國道1號", "name": "泰山轉接", "direction": "N", "km": 35.8, "lat": 25.057, "lng": 121.420, "trafficSpeed": 35 },
+            { "id": "34N", "freeway": "國道1號", "name": "高公局", "direction": "N", "km": 34.1, "lat": 25.053, "lng": 121.430, "trafficSpeed": 88 }
         ];
 
         function getDistanceKM(lat1, lon1, lat2, lon2) {
@@ -153,7 +148,7 @@
                         upcoming = activeData.filter(item => item.km < currentKM).sort((a, b) => b.km - a.km);
                     }
 
-                    renderTimelineUI(upcoming, currentKM);
+                    renderTimelineUI(upcoming, currentKM, activeData);
                 },
                 (error) => {
                     document.getElementById("status-text").innerText = "無法取得 GPS 定位";
@@ -162,42 +157,73 @@
             );
         }
 
-        function renderTimelineUI(upcoming, currentKM) {
+        // 根據即時車速判斷路況顏色與標籤
+        function getTrafficBadge(speed) {
+            if (speed >= 80) {
+                return `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded text-[11px] font-bold">${speed} km/h</span>`;
+            } else if (speed >= 40) {
+                return `<span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded text-[11px] font-bold">${speed} km/h (車多)</span>`;
+            } else {
+                return `<span class="bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded text-[11px] font-bold animate-pulse">${speed} km/h (壅塞)</span>`;
+            }
+        }
+
+        function renderTimelineUI(upcoming, currentKM, activeData) {
             const container = document.getElementById("timeline-container");
             if (upcoming.length === 0) {
                 container.innerHTML = `<div class="text-center text-slate-500 py-6">前方無更多閘道資訊</div>`;
                 return;
             }
 
-            const displayList = upcoming.slice(0, 4);
-            let html = `<div class="relative pl-6 space-y-4 before:absolute before:left-3.5 before:top-3 before:bottom-3 before:w-1 before:bg-slate-700">`;
+            const nextExit = upcoming[0];
+            const prevExit = activeData.filter(i => (activeData[0].direction === 'S' ? i.km <= currentKM : i.km >= currentKM)).pop() || activeData[0];
+            
+            // 計算車子在目前路段上的前進百分比 (%)
+            const totalSegmentKM = Math.abs(nextExit.km - prevExit.km) || 1;
+            const progressKM = Math.abs(currentKM - prevExit.km);
+            let carPercent = Math.min(100, Math.max(0, (progressKM / totalSegmentKM) * 100));
 
+            let html = `
+                <!-- 路線軸背景軌道 -->
+                <div class="absolute left-2.5 top-3 bottom-3 w-1 bg-slate-700/80 rounded-full"></div>
+
+                <!-- 🚗 動態汽車 Icon (隨位置平滑移動) -->
+                <div class="absolute left-0.5 w-5 h-5 bg-amber-400 rounded-full flex items-center justify-center text-black text-[10px] shadow-lg shadow-amber-400/50 transition-all duration-1000 z-10" 
+                     style="top: calc(${carPercent}% * 0.7 + 10px);">
+                    🚗
+                </div>
+            `;
+
+            const displayList = upcoming.slice(0, 3);
             displayList.forEach((item, index) => {
                 const dist = Math.abs(item.km - currentKM).toFixed(1);
                 const estTime = Math.ceil(dist * 0.7);
                 const isNext = index === 0;
 
                 html += `
-                    <div class="relative flex items-center justify-between">
-                        <!-- 路線軸節點 -->
-                        <div class="absolute -left-6 w-3.5 h-3.5 rounded-full ${isNext ? 'bg-emerald-400 ring-4 ring-emerald-400/30 animate-pulse' : 'bg-slate-600'}"></div>
+                    <div class="relative flex items-center justify-between z-0">
+                        <!-- 節點標示 -->
+                        <div class="absolute -left-7 w-3.5 h-3.5 rounded-full ${isNext ? 'bg-emerald-400 ring-4 ring-emerald-400/30' : 'bg-slate-600'}"></div>
                         
-                        <!-- 高品質指示牌 (綠底白字白邊) -->
-                        <div class="highway-sign text-white px-3.5 py-1.5 rounded-xl font-bold flex items-center space-x-2 ${isNext ? 'scale-105 transition-transform' : 'opacity-90'}">
-                            <span class="text-sm font-black border-r border-white/40 pr-2 font-mono">${item.id.replace('N','')}</span>
-                            <span class="text-base font-extrabold tracking-wider">${item.name}</span>
+                        <!-- 國道綠標牌 + 路況車速 -->
+                        <div class="flex items-center space-x-2">
+                            <div class="highway-sign text-white px-3 py-1.5 rounded-xl font-bold flex items-center space-x-2 shadow-md">
+                                <span class="text-xs font-black border-r border-white/40 pr-1.5 font-mono">${item.id.replace('N','')}</span>
+                                <span class="text-sm font-extrabold tracking-wider">${item.name}</span>
+                            </div>
+                            <!-- 即時路況顏色與車速標籤 -->
+                            ${getTrafficBadge(item.trafficSpeed)}
                         </div>
 
-                        <!-- 距離與預估時間 -->
+                        <!-- 距離與時間 -->
                         <div class="text-right">
-                            <div class="text-lg font-black ${isNext ? 'text-amber-400 font-mono' : 'text-slate-200 font-mono'}">${dist} <span class="text-xs text-slate-400">km</span></div>
-                            <div class="text-[11px] font-bold text-slate-400">約 ${estTime} 分鐘</div>
+                            <div class="text-base font-black ${isNext ? 'text-amber-400 font-mono' : 'text-slate-200 font-mono'}">${dist} <span class="text-[10px] text-slate-400">km</span></div>
+                            <div class="text-[10px] font-bold text-slate-400">約 ${estTime} 分</div>
                         </div>
                     </div>
                 `;
             });
 
-            html += `</div>`;
             container.innerHTML = html;
         }
 
