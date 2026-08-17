@@ -57,12 +57,12 @@
             <span id="direction-tag" class="bg-blue-600/30 text-blue-400 border border-blue-500/30 px-3 py-0.5 rounded-md text-xs font-bold">自動辨識方向</span>
         </div>
 
-        <!-- 路線軸主區域 (貫穿線 + 3站窗口滾動區) -->
+        <!-- 路線軸主區域 (貫穿軸線 + 4站平滑滑動佇列) -->
         <div id="timeline-container" class="relative flex-1 my-2 flex flex-col justify-between overflow-hidden">
-            <!-- 貫穿縱向軸線 -->
+            <!-- 貫穿縱向軸線 (絕對層，絕不斷線) -->
             <div class="absolute left-[18px] top-0 bottom-[40px] w-1.5 bg-slate-700/80 rounded-full -translate-x-1/2 z-0"></div>
 
-            <!-- 動態滾動隊列容器 (保持 3 個卡片平滑流動) -->
+            <!-- 動態滾動隊列容器 (採用 Smooth Transform 移動) -->
             <div id="scroll-track" class="flex-1 flex flex-col justify-between relative z-10 my-1 pb-1 transition-transform duration-200 ease-linear">
                 <div class="text-center text-slate-500 my-auto text-base">搜尋 GPS 定位中...</div>
             </div>
@@ -82,7 +82,7 @@
     <div id="sim-panel" class="hidden my-2 bg-slate-800 border border-amber-500/50 rounded-xl p-3 text-xs space-y-2">
         <div class="font-bold text-amber-400 flex justify-between items-center">
             <span>⚙️ 模擬參數設定</span>
-            <span class="text-[10px] text-slate-400">無縫窗口滾動與貼線模式</span>
+            <span class="text-[10px] text-slate-400">真·連續平滑滾動模式</span>
         </div>
         <div class="grid grid-cols-3 gap-2">
             <div>
@@ -434,7 +434,7 @@
             }
         }
 
-        // 核心渲染引擎：維持只看前方 3 個出口，以無縫差值 (Interpolation) 做 Continuous Transform
+        // 終極流暢連續滾動渲染引擎 (4卡片滑動佇列 + 0.00km 貼線幾何對齊)
         function renderTimelineUI(currentKM, activeData, direction) {
             const track = document.getElementById("scroll-track");
             
@@ -451,11 +451,11 @@
                 return;
             }
 
-            // 永遠精準限制只取前方 3 個出口
-            const displayUpcoming = upcoming.slice(0, 3);
-            const nextExit = displayUpcoming[0];
+            // 取出剛過站的 1 個出口 + 前方 3 個出口 (共 4 個組成連續滾動視窗)
+            const nextExit = upcoming[0];
             const prevExit = activeData.filter(i => (direction === 'S' ? i.km <= currentKM : i.km >= currentKM)).pop() || activeData[0];
             
+            const displayUpcoming = [prevExit, ...upcoming.slice(0, 3)];
             const isExpress = routesDatabase[currentRouteKey].express;
             const signClass = isExpress ? "express-sign" : "highway-sign";
 
@@ -464,26 +464,32 @@
             const segmentProgress = Math.abs(currentKM - prevExit.km);
             const progressRatio = Math.min(1.0, Math.max(0.0, segmentProgress / segmentTotal));
 
-            // 精確幾何位移：在倒數至 0.00km 時（progressRatio = 1.0），下推 60px 讓第一張卡片底邊壓貼綠線
-            const gateYOffset = progressRatio * 60;
+            // 精確幾何位移算式：預設整體下推，當 progressRatio = 1.0 (距 0.00km) 時，Index 1 卡片底邊精準壓貼綠線
+            const gateYOffset = progressRatio * 52;
 
-            // 繪製前 3 個出口 (維持 3 欄 Grid 隔離)
             let html = "";
             displayUpcoming.reverse().forEach((item, revIndex) => {
                 const index = displayUpcoming.length - 1 - revIndex;
                 const distVal = Math.abs(item.km - currentKM);
                 const dist = distVal.toFixed(1);
                 const estTime = Math.ceil(distVal * 0.7);
-                const isNext = index === 0;
+
+                const isPassed = (direction === 'S' ? item.km <= currentKM : item.km >= currentKM);
+                const isNext = item.id === nextExit.id;
+
+                let rowStyle = "opacity-100";
+                if (isPassed && item.id !== nextExit.id) {
+                    rowStyle = "opacity-30"; // 剛過的卡片向下滑出綠線並淡出
+                }
 
                 html += `
-                    <div class="grid grid-cols-[36px_1fr_auto] items-center min-h-[48px] relative transition-all duration-200">
-                        <!-- Col 1: 圓點標點 (絕對線上記疊，不吃字) -->
+                    <div class="grid grid-cols-[36px_1fr_auto] items-center min-h-[48px] relative transition-opacity duration-300 ${rowStyle}">
+                        <!-- Col 1: 圓點標點 (軌道線上記疊) -->
                         <div class="relative h-full flex items-center justify-center">
                             <div class="w-4 h-4 rounded-full z-10 ${isNext ? 'bg-amber-400 ring-4 ring-amber-400/30' : 'bg-slate-600'}"></div>
                         </div>
 
-                        <!-- Col 2: 路牌與車速標籤 -->
+                        <!-- Col 2: 路牌標籤與即時車速 -->
                         <div class="flex items-center space-x-2 overflow-hidden pl-1">
                             <div class="${signClass} text-white px-3 py-1.5 rounded-xl font-bold flex items-center space-x-2 shadow-lg ${isNext ? 'scale-105 border-amber-300' : 'opacity-85'}">
                                 <span class="text-xs md:text-sm font-black border-r border-white/40 pr-1.5 font-mono">${item.id.replace('N','')}</span>
@@ -492,7 +498,7 @@
                             ${getSpeedTag(item.segmentSpeed || 85)}
                         </div>
 
-                        <!-- Col 3: 剩餘距離與時間 -->
+                        <!-- Col 3: 剩餘距離與預估時間 -->
                         <div class="text-right pl-2 shrink-0">
                             <div class="text-lg font-black ${isNext ? 'text-amber-400 font-mono' : 'text-slate-200 font-mono'}">${dist} <span class="text-xs text-slate-400">km</span></div>
                             <div class="text-xs font-bold text-slate-400">約 ${estTime} 分</div>
@@ -501,11 +507,11 @@
                 `;
             });
 
-            // 保持 DOM 動態推進，同時絕不爆出多餘站點
+            // 連續 Transform 物理推進 (不重刷 DOM 節點，完全消除硬跳)
             track.style.transform = `translateY(${gateYOffset}px)`;
             track.innerHTML = html;
 
-            // 更新最下方綠線資訊
+            // 更新最下方駕駛綠線資訊
             const dirLabel = getDirectionText(currentRouteKey, direction);
             document.getElementById("bottom-info-main").innerText = `📍 目前位置: ${currentKM.toFixed(2)} K (${dirLabel})`;
             document.getElementById("bottom-info-sub").innerText = `距下個出口 (${nextExit.name}) ${Math.abs(nextExit.km - currentKM).toFixed(2)} km`;
