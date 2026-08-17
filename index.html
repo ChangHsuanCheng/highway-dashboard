@@ -9,55 +9,76 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { 
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang TC", "Microsoft JhengHei", sans-serif;
             -webkit-tap-highlight-color: transparent;
+        }
+
+        /* 官方梅花國道標誌 CSS */
+        .plum-blossom {
+            width: 32px;
+            height: 32px;
+            background-color: #007A3D; /* 高公局標準綠 */
+            border: 2px solid #FFFFFF;
+            clip-path: polygon(50% 0%, 80% 10%, 100% 35%, 85% 70%, 100% 90%, 50% 100%, 0% 90%, 15% 70%, 0% 35%, 20% 10%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            color: white;
+            font-size: 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        /* 官方風格綠底白字指示牌 */
+        .highway-sign {
+            background-color: #007A3D;
+            border: 2px solid #FFFFFF;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
         }
     </style>
 </head>
-<body class="bg-[#121824] text-white min-h-screen flex flex-col p-4 justify-between select-none">
+<body class="bg-[#0f172a] text-white min-h-screen flex flex-col p-4 justify-between select-none">
 
-    <!-- 頂部資訊列：縮小後的時速與當前 K 數 -->
-    <header class="bg-[#1a2332] border border-gray-700/50 rounded-2xl p-4 flex justify-between items-center shadow-lg">
+    <!-- 頂部資訊列：梅花標誌 + 當前 K 數 + 縮小版車速 -->
+    <header class="bg-[#1e293b] border border-slate-700 rounded-2xl p-4 flex justify-between items-center shadow-xl">
         <div class="flex items-center space-x-3">
-            <div class="bg-green-600 text-white font-black px-2.5 py-1 rounded-lg flex items-center text-sm shadow">
-                <span class="mr-1">🌸</span> 國1
-            </div>
+            <!-- 標準國道一號梅花標誌 -->
+            <div class="plum-blossom">1</div>
             <div>
-                <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">目前位置</div>
-                <div id="current-km" class="text-2xl font-black text-green-400 font-mono">--.- K</div>
+                <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">目前位置</div>
+                <div id="current-km" class="text-2xl font-black text-emerald-400 font-mono">--.- K</div>
             </div>
         </div>
-        <div class="text-right flex items-baseline space-x-1">
-            <span id="current-speed" class="text-3xl font-black text-white">0</span>
-            <span class="text-xs font-bold text-gray-400">km/h</span>
+        <div class="text-right flex items-baseline space-x-1 bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-700/50">
+            <span id="current-speed" class="text-2xl font-black text-white font-mono">0</span>
+            <span class="text-xs font-bold text-slate-400">km/h</span>
         </div>
     </header>
 
-    <!-- 主體：國道路線軸 (Timeline) 風格 -->
+    <!-- 主體：國道官方標牌風格路線軸 -->
     <main class="my-auto py-4 flex-1 flex flex-col justify-center">
-        <div class="bg-[#1a2332]/80 border border-gray-700/60 rounded-3xl p-5 shadow-2xl backdrop-blur relative overflow-hidden">
+        <div class="bg-[#1e293b]/90 border border-slate-700/80 rounded-3xl p-5 shadow-2xl backdrop-blur relative overflow-hidden">
             
-            <div class="text-center text-xs font-bold text-gray-400 tracking-wider mb-4 border-b border-gray-700/50 pb-2 flex justify-between px-2">
-                <span>前方路況與閘道資訊</span>
-                <span id="direction-tag" class="text-blue-400">南下順向</span>
+            <div class="text-center text-xs font-bold text-slate-400 tracking-wider mb-5 border-b border-slate-700/60 pb-2.5 flex justify-between items-center px-2">
+                <span class="flex items-center"><span class="w-2 h-2 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>前方出口預覽</span>
+                <span id="direction-tag" class="bg-blue-600/30 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded-md text-[11px]">南下</span>
             </div>
 
-            <!-- 垂直動態路線清單容器 -->
-            <div id="timeline-container" class="relative space-y-3">
-                <div class="text-center text-gray-500 py-8 text-sm">搜尋 GPS 定位中...</div>
+            <!-- 路線軸容器 -->
+            <div id="timeline-container" class="relative space-y-4">
+                <div class="text-center text-slate-500 py-8 text-sm">搜尋 GPS 定位中...</div>
             </div>
 
         </div>
     </main>
 
     <!-- 頁尾狀態列 -->
-    <footer class="text-center text-[11px] text-gray-500 pb-2">
+    <footer class="text-center text-[11px] text-slate-500 pb-1">
         <span id="status-text">請允許位置存取以啟動即時追蹤</span>
     </footer>
 
     <!-- 邏輯腳本 -->
     <script>
-        // 交流道資料庫
         const highwayData = [
             { "id": "34", "freeway": "國道1號", "name": "高公局", "direction": "S", "km": 34.1, "lat": 25.053, "lng": 121.430 },
             { "id": "35", "freeway": "國道1號", "name": "泰山轉接道", "direction": "S", "km": 35.8, "lat": 25.057, "lng": 121.420 },
@@ -139,7 +160,6 @@
                     document.getElementById("current-km").innerText = `${currentKM.toFixed(1)} K`;
                     document.getElementById("status-text").innerText = "GPS 定位正常運作中";
 
-                    // 篩選前方交流道 (顯示前 4 個)
                     let upcoming = [];
                     if (currentDirection === "S") {
                         upcoming = activeData.filter(item => item.km > currentKM).sort((a, b) => a.km - b.km);
@@ -156,37 +176,36 @@
             );
         }
 
-        // 渲染路線軸介面
         function renderTimelineUI(upcoming, currentKM) {
             const container = document.getElementById("timeline-container");
             if (upcoming.length === 0) {
-                container.innerHTML = `<div class="text-center text-gray-500 py-6">前方無更多閘道資訊</div>`;
+                container.innerHTML = `<div class="text-center text-slate-500 py-6">前方無更多閘道資訊</div>`;
                 return;
             }
 
             const displayList = upcoming.slice(0, 4);
-            let html = `<div class="relative pl-6 space-y-6 before:absolute before:left-3.5 before:top-3 before:bottom-3 before:w-1 before:bg-gray-700/80">`;
+            let html = `<div class="relative pl-6 space-y-4 before:absolute before:left-3.5 before:top-3 before:bottom-3 before:w-1 before:bg-slate-700">`;
 
             displayList.forEach((item, index) => {
                 const dist = Math.abs(item.km - currentKM).toFixed(1);
-                const estTime = Math.ceil(dist * 0.7); // 粗略估算時間
+                const estTime = Math.ceil(dist * 0.7);
                 const isNext = index === 0;
 
                 html += `
                     <div class="relative flex items-center justify-between">
-                        <!-- 路線軸上的節點圓點 -->
-                        <div class="absolute -left-6 w-3.5 h-3.5 rounded-full ${isNext ? 'bg-amber-400 ring-4 ring-amber-400/30' : 'bg-gray-600'}"></div>
+                        <!-- 路線軸節點 -->
+                        <div class="absolute -left-6 w-3.5 h-3.5 rounded-full ${isNext ? 'bg-emerald-400 ring-4 ring-emerald-400/30 animate-pulse' : 'bg-slate-600'}"></div>
                         
-                        <!-- 左側：黃底出口標牌 -->
-                        <div class="flex items-center space-x-2 bg-amber-400 text-black px-3 py-1.5 rounded-xl font-bold shadow-md">
-                            <span class="text-sm font-black border-r border-black/30 pr-2">${item.id.replace('N','')}</span>
-                            <span class="text-base font-extrabold tracking-wide">${item.name}</span>
+                        <!-- 官方樣式指示牌 (綠底白字白邊) -->
+                        <div class="highway-sign text-white px-3.5 py-1.5 rounded-xl font-bold flex items-center space-x-2 ${isNext ? 'scale-105 transition-transform' : 'opacity-90'}">
+                            <span class="text-sm font-black border-r border-white/40 pr-2">${item.id.replace('N','')}</span>
+                            <span class="text-base font-extrabold tracking-wider">${item.name}</span>
                         </div>
 
-                        <!-- 右側：距離與預估時間 -->
+                        <!-- 距離與時間 -->
                         <div class="text-right">
-                            <div class="text-lg font-black ${isNext ? 'text-amber-400 font-mono' : 'text-gray-200 font-mono'}">${dist} <span class="text-xs text-gray-400">km</span></div>
-                            <div class="text-[11px] font-bold text-gray-400">約 ${estTime} 分鐘</div>
+                            <div class="text-lg font-black ${isNext ? 'text-amber-400 font-mono' : 'text-slate-200 font-mono'}">${dist} <span class="text-xs text-slate-400">km</span></div>
+                            <div class="text-[11px] font-bold text-slate-400">約 ${estTime} 分鐘</div>
                         </div>
                     </div>
                 `;
@@ -196,7 +215,6 @@
             container.innerHTML = html;
         }
 
-        // 螢幕防休眠
         async function requestWakeLock() {
             try {
                 if ('wakeLock' in navigator) await navigator.wakeLock.request('screen');
