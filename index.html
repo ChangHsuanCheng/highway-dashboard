@@ -23,7 +23,7 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
         }
         .gate-row {
-            height: 70px;
+            height: 70px; /* 固定幾何高度 */
         }
     </style>
 </head>
@@ -47,7 +47,7 @@
         </div>
     </header>
 
-    <main class="flex-1 bg-[#1e293b]/90 border border-slate-700/80 rounded-2xl p-4 shadow-2xl flex flex-col justify-between relative overflow-hidden min-h-[350px]">
+    <main class="flex-1 bg-[#1e293b]/90 border border-slate-700/80 rounded-2xl p-4 shadow-2xl flex flex-col justify-between relative overflow-hidden min-h-[360px]">
         
         <div class="text-xs font-bold text-slate-400 tracking-wider border-b border-slate-700/60 pb-2 flex justify-between items-center z-10 shrink-0">
             <span class="flex items-center">
@@ -57,7 +57,7 @@
             <span id="direction-tag" class="bg-blue-600/30 text-blue-400 border border-blue-500/30 px-3 py-0.5 rounded-md text-xs font-bold">自動辨識方向</span>
         </div>
 
-        <div id="timeline-container" class="relative flex-1 my-2 overflow-hidden flex flex-col justify-end">
+        <div id="timeline-container" class="relative flex-1 my-2 flex flex-col justify-end overflow-hidden">
             <div class="absolute left-[18px] top-0 bottom-0 w-1.5 bg-slate-700/80 rounded-full -translate-x-1/2 z-0"></div>
 
             <div id="scroll-track" class="relative z-10 w-full transition-transform duration-200 ease-linear">
@@ -77,7 +77,7 @@
     <div id="sim-panel" class="hidden my-2 bg-slate-800 border border-amber-500/50 rounded-xl p-3 text-xs space-y-2 shrink-0">
         <div class="font-bold text-amber-400 flex justify-between items-center">
             <span>⚙️ 模擬參數設定</span>
-            <span class="text-[10px] text-slate-400">綠線獨立固定對齊模式</span>
+            <span class="text-[10px] text-slate-400">極簡 4-Card 幾何滑動視窗</span>
         </div>
         <div class="grid grid-cols-3 gap-2">
             <div>
@@ -109,10 +109,10 @@
 
     <script>
         // ========================================================
-        // ⚙️ 自由對齊調校參數開關
+        // ⚙️ 對齊調校參數開關
         // ========================================================
-        const CARD_HEIGHT_PX = 70;      // 每張卡片的實體高度 (px)
-        const LINE_OFFSET_PX = 0;       // 綠線碰線歸零微調 (px)
+        const CARD_HEIGHT_PX = 70;      // 每張卡片的固定高度
+        const LINE_OFFSET_PX = 0;       // 綠線觸線對齊微調 (px)
         // ========================================================
 
         const routesDatabase = {
@@ -204,8 +204,7 @@
         let isSimulation = false;
         let simInterval = null;
         let simCurrentKM = 6.0;
-        let lastBuiltRouteKey = null;
-        let lastBuiltDirection = null;
+        let lastBuiltWindowKey = null;
 
         function getDirectionText(routeKey, directionCode) {
             const rType = routesDatabase[routeKey].type;
@@ -268,7 +267,7 @@
             } else {
                 simDirSelect.innerHTML = `<option value="S">東向</option><option value="N">西向</option>`;
             }
-            lastBuiltRouteKey = null;
+            lastBuiltWindowKey = null;
         }
 
         function autoDetectRoute(lat, lng) {
@@ -391,7 +390,7 @@
             if (isSimulation) startSimulationLoop();
         });
         document.getElementById("sim-dir").addEventListener("change", () => { 
-            lastBuiltRouteKey = null;
+            lastBuiltWindowKey = null;
             if (isSimulation) startSimulationLoop(); 
         });
 
@@ -440,14 +439,14 @@
             }
         }
 
-        // 全線 DOM 佇列建構（遠在上、近在下）
-        function buildFullRouteDOM(activeNodes) {
+        // 僅構建「4卡片滑動視窗」（剛過站 1 站 + 前方 3 站），保證 100% 不飛框
+        function buildWindowDOM(windowNodes) {
             const track = document.getElementById("scroll-track");
             const isExpress = routesDatabase[currentRouteKey].express;
             const signClass = isExpress ? "express-sign" : "highway-sign";
 
             let html = "";
-            activeNodes.forEach(item => {
+            windowNodes.forEach(item => {
                 html += `
                     <div id="gate-card-${item.id}" class="gate-row grid grid-cols-[36px_1fr_auto] items-center relative transition-opacity duration-300">
                         <div class="relative h-full flex items-center justify-center">
@@ -472,17 +471,8 @@
             track.innerHTML = html;
         }
 
-        // 真·無縫絕對幾何連續滾動引擎
+        // 核心滾動引擎：4 卡片極簡滑動佇列（絕對零飛框、絕對看的到）
         function renderTimelineUI(currentKM, activeData, direction) {
-            if (lastBuiltRouteKey !== currentRouteKey || lastBuiltDirection !== direction) {
-                const sortedNodes = [...activeData].sort((a, b) => {
-                    return direction === "S" ? b.km - a.km : a.km - b.km;
-                });
-                buildFullRouteDOM(sortedNodes);
-                lastBuiltRouteKey = currentRouteKey;
-                lastBuiltDirection = direction;
-            }
-
             let upcoming = [];
             if (direction === "S") {
                 upcoming = activeData.filter(item => item.km > currentKM).sort((a, b) => a.km - b.km);
@@ -495,23 +485,31 @@
             const nextExit = upcoming[0];
             const prevExit = activeData.filter(i => (direction === 'S' ? i.km <= currentKM : i.km >= currentKM)).pop() || activeData[0];
 
+            // 組合「剛過站 1 站 + 前方 3 站」（共 4 站，遠在最上，近在最下）
+            const displayUpcoming = [prevExit, ...upcoming.slice(0, 3)];
+            const windowNodes = [...displayUpcoming].sort((a, b) => {
+                return direction === "S" ? b.km - a.km : a.km - b.km;
+            });
+
+            const currentWindowKey = windowNodes.map(n => n.id).join(',');
+
+            // 僅當過站（視窗換人）時才重繪 DOM，避免日常影幀硬切
+            if (lastBuiltWindowKey !== currentWindowKey) {
+                buildWindowDOM(windowNodes);
+                lastBuiltWindowKey = currentWindowKey;
+            }
+
+            // 區間進度 (0.0 -> 1.0)
             const segmentTotal = Math.abs(nextExit.km - prevExit.km) || 1;
             const segmentProgress = Math.abs(currentKM - prevExit.km);
             const progressRatio = Math.min(1.0, Math.max(0.0, segmentProgress / segmentTotal));
 
-            const sortedNodes = [...activeData].sort((a, b) => {
-                return direction === "S" ? b.km - a.km : a.km - b.km;
-            });
-
-            // 🟢 絕對安全算式：鎖定 Next Exit 在綠線上方，絕對不會算成幾千像素
-            const nextIndex = sortedNodes.findIndex(n => n.id === nextExit.id);
-            const totalNodes = sortedNodes.length;
-
+            // 🟢 極簡位移算式：控制量永遠在 0px ~ 70px 之間，絕不飛框！
+            // 倒數至 0.00km (progressRatio=1.0) 時，Next Exit 底邊精準 100% 貼合壓在綠線上
             const cardHeight = CARD_HEIGHT_PX;
-            const baseOffset = (totalNodes - 1 - nextIndex) * cardHeight;
-            const targetY = baseOffset + (progressRatio * cardHeight) + LINE_OFFSET_PX;
+            const targetY = (progressRatio * cardHeight) + LINE_OFFSET_PX;
 
-            sortedNodes.forEach((item) => {
+            windowNodes.forEach((item) => {
                 const cardEl = document.getElementById(`gate-card-${item.id}`);
                 const distEl = document.getElementById(`gate-dist-${item.id}`);
                 const timeEl = document.getElementById(`gate-time-${item.id}`);
@@ -526,7 +524,7 @@
                 timeEl.innerText = `約 ${estTime} 分`;
 
                 const isNext = item.id === nextExit.id;
-                const isPassed = (direction === 'S' ? item.km <= currentKM : item.km >= currentKM);
+                const isPassed = (direction === 'S' ? item.km <= currentKM : item.km >= currentKM) && !isNext;
 
                 if (isNext) {
                     dotEl.className = "w-4 h-4 rounded-full z-10 bg-amber-400 ring-4 ring-amber-400/30";
@@ -535,7 +533,7 @@
                 } else if (isPassed) {
                     dotEl.className = "w-4 h-4 rounded-full z-10 bg-slate-700";
                     distEl.className = "text-lg font-black text-slate-500 font-mono";
-                    cardEl.style.opacity = "0.15";
+                    cardEl.style.opacity = "0.15"; // 剛過的卡片向下滑出綠線淡出
                 } else {
                     dotEl.className = "w-4 h-4 rounded-full z-10 bg-slate-600";
                     distEl.className = "text-lg font-black text-slate-200 font-mono";
@@ -543,9 +541,11 @@
                 }
             });
 
+            // 毫秒級 Transform 連續位移
             const track = document.getElementById("scroll-track");
             track.style.transform = `translateY(${targetY}px)`;
 
+            // 下方綠線面板數據
             const dirLabel = getDirectionText(currentRouteKey, direction);
             document.getElementById("bottom-info-main").innerText = `📍 目前位置: ${currentKM.toFixed(2)} K (${dirLabel})`;
             document.getElementById("bottom-info-sub").innerText = `距下個出口 (${nextExit.name}) ${Math.abs(nextExit.km - currentKM).toFixed(2)} km`;
