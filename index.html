@@ -57,9 +57,23 @@
             <span id="direction-tag" class="bg-blue-600/30 text-blue-400 border border-blue-500/30 px-3 py-0.5 rounded-md text-xs font-bold">自動辨識方向</span>
         </div>
 
-        <!-- 路線軸主區域 (無縫連續滾動軌道) -->
+        <!-- 路線軸主區域 (100% 貫穿軸線 + 平滑連續滾動容器) -->
         <div id="timeline-container" class="relative flex-1 my-2 flex flex-col justify-between overflow-hidden">
-            <div class="text-center text-slate-500 my-auto text-base">搜尋 GPS 定位中...</div>
+            <!-- 貫穿縱向軸線 -->
+            <div class="absolute left-[18px] top-0 bottom-[40px] w-1.5 bg-slate-700/80 rounded-full -translate-x-1/2 z-0"></div>
+
+            <!-- 動態滾動隊列容器 (DOM 節點不刪除，純 Transform 平滑下推) -->
+            <div id="scroll-track" class="flex-1 flex flex-col justify-between relative z-10 my-1 pb-1 transition-transform duration-200 ease-linear">
+                <div class="text-center text-slate-500 my-auto text-base">搜尋 GPS 定位中...</div>
+            </div>
+
+            <!-- 最下方：駕駛位置綠線 (0.00km 卡片底邊觸碰線) -->
+            <div class="relative z-20 mt-auto pt-2 border-t-4 border-emerald-500 flex flex-col items-start pl-9 justify-center bg-[#1e293b]/95">
+                <div class="bg-emerald-950/95 border border-emerald-500/80 text-emerald-300 px-3.5 py-1.5 rounded-xl shadow-2xl leading-tight max-w-full truncate">
+                    <div id="bottom-info-main" class="text-emerald-300 font-black text-xs md:text-sm tracking-wide truncate">📍 目前位置: -- K</div>
+                    <div id="bottom-info-sub" class="text-[10px] text-emerald-400/90 font-bold mt-0.5 truncate">距下個出口 -- km</div>
+                </div>
+            </div>
         </div>
 
     </main>
@@ -68,7 +82,7 @@
     <div id="sim-panel" class="hidden my-2 bg-slate-800 border border-amber-500/50 rounded-xl p-3 text-xs space-y-2">
         <div class="font-bold text-amber-400 flex justify-between items-center">
             <span>⚙️ 模擬參數設定</span>
-            <span class="text-[10px] text-slate-400">真·無縫連續滾動模式</span>
+            <span class="text-[10px] text-slate-400">真·連續平滑滾動模式</span>
         </div>
         <div class="grid grid-cols-3 gap-2">
             <div>
@@ -189,6 +203,8 @@
         let isSimulation = false;
         let simInterval = null;
         let simCurrentKM = 41.5;
+        let lastRenderedRoute = null;
+        let lastRenderedDir = null;
 
         function getDirectionText(routeKey, directionCode) {
             const rType = routesDatabase[routeKey].type;
@@ -283,14 +299,7 @@
             const activeData = routesDatabase[currentRouteKey].nodes.filter(item => item.direction === direction);
             if (activeData.length === 0) return;
 
-            let upcoming = [];
-            if (direction === "S") {
-                upcoming = activeData.filter(item => item.km > currentKM).sort((a, b) => a.km - b.km);
-            } else {
-                upcoming = activeData.filter(item => item.km < currentKM).sort((a, b) => b.km - a.km);
-            }
-
-            renderTimelineUI(upcoming, currentKM, activeData, direction);
+            renderTimelineUI(currentKM, activeData, direction);
         }
 
         function processLocationUpdate(lat, lng, heading, speed) {
@@ -427,86 +436,105 @@
             }
         }
 
-        // 終極連續滾動渲染引擎：零硬刷新、百分比對齊綠線
-        function renderTimelineUI(upcoming, currentKM, activeData, direction) {
-            const container = document.getElementById("timeline-container");
-            if (upcoming.length === 0) {
-                container.innerHTML = `<div class="text-center text-slate-500 my-auto text-base">前方無更多閘道資訊</div>`;
-                return;
+        // 初始化靜態 DOM 佇列（絕不銷毀/重新內置 DOM）
+        function buildStaticDOM(activeData) {
+            const track = document.getElementById("scroll-track");
+            const isExpress = routesDatabase[currentRouteKey].express;
+            const signClass = isExpress ? "express-sign" : "highway-sign";
+
+            let html = "";
+            activeData.forEach((item, index) => {
+                html += `
+                    <div id="gate-node-${item.id}" class="grid grid-cols-[36px_1fr_auto] items-center min-h-[48px] relative transition-opacity duration-300">
+                        <div class="relative h-full flex items-center justify-center">
+                            <div id="gate-dot-${item.id}" class="w-4 h-4 rounded-full z-10 bg-slate-600"></div>
+                        </div>
+                        <div class="flex items-center space-x-2 overflow-hidden pl-1">
+                            <div class="${signClass} text-white px-3 py-1.5 rounded-xl font-bold flex items-center space-x-2 shadow-lg">
+                                <span class="text-xs md:text-sm font-black border-r border-white/40 pr-1.5 font-mono">${item.id.replace('N','')}</span>
+                                <span class="text-sm md:text-base font-extrabold tracking-wider whitespace-nowrap break-keep">${item.name}</span>
+                            </div>
+                            ${getSpeedTag(item.segmentSpeed || 85)}
+                        </div>
+                        <div class="text-right pl-2 shrink-0">
+                            <div id="gate-dist-${item.id}" class="text-lg font-black text-slate-200 font-mono">-- <span class="text-xs text-slate-400">km</span></div>
+                            <div id="gate-time-${item.id}" class="text-xs font-bold text-slate-400">--</div>
+                        </div>
+                    </div>
+                `;
+            });
+            track.innerHTML = html;
+        }
+
+        // 核心渲染引擎：純邏輯運算與 Transform 推推進，絕不重刷 DOM 結構
+        function renderTimelineUI(currentKM, activeData, direction) {
+            // 如果切換路線或方向，才重新構建靜態 DOM 佇列
+            if (lastRenderedRoute !== currentRouteKey || lastRenderedDir !== direction) {
+                buildStaticDOM(activeData);
+                lastRenderedRoute = currentRouteKey;
+                lastRenderedDir = direction;
             }
+
+            // 尋找下一個未過之閘道 (Next Exit)
+            let upcoming = [];
+            if (direction === "S") {
+                upcoming = activeData.filter(item => item.km > currentKM).sort((a, b) => a.km - b.km);
+            } else {
+                upcoming = activeData.filter(item => item.km < currentKM).sort((a, b) => b.km - a.km);
+            }
+
+            if (upcoming.length === 0) return;
 
             const nextExit = upcoming[0];
             const prevExit = activeData.filter(i => (direction === 'S' ? i.km <= currentKM : i.km >= currentKM)).pop() || activeData[0];
-            const displayUpcoming = upcoming.slice(0, 3);
-            const isExpress = routesDatabase[currentRouteKey].express;
-            const signClass = isExpress ? "express-sign" : "highway-sign";
 
             // 計算在該區間內的進度比例 (0.0 ~ 1.0)
             const segmentTotal = Math.abs(nextExit.km - prevExit.km) || 1;
             const segmentProgress = Math.abs(currentKM - prevExit.km);
             const progressRatio = Math.min(1.0, Math.max(0.0, segmentProgress / segmentTotal));
 
-            // 精確幾何百分比下推：最大下推 60px，當 progressRatio = 1.0 (距 0.00km) 時，第一個卡片底邊剛好 100% 壓貼於綠線上
-            const gateYOffset = progressRatio * 60;
+            // 更新純文字數據 (不用重刷 DOM，極速與零閃爍)
+            activeData.forEach(item => {
+                const distNode = document.getElementById(`gate-dist-${item.id}`);
+                const timeNode = document.getElementById(`gate-time-${item.id}`);
+                const dotNode = document.getElementById(`gate-dot-${item.id}`);
+                const rowNode = document.getElementById(`gate-node-${item.id}`);
 
-            let html = `
-                <!-- 1. 全貫穿導航灰色軸線 (絕對層，獨立從頂部延伸至綠線，絕不斷線) -->
-                <div class="absolute left-[18px] top-0 bottom-[40px] w-1.5 bg-slate-700/80 rounded-full -translate-x-1/2 z-0"></div>
+                if (!distNode) return;
 
-                <!-- 2. 下推推進卡片容器 (具備連續平滑滾動動畫) -->
-                <div class="flex-1 flex flex-col justify-between relative z-10 my-1 pb-1 transition-transform duration-200 ease-linear" 
-                     style="transform: translateY(${gateYOffset}px);">
-            `;
+                const distVal = Math.abs(item.km - currentKM);
+                const estTime = Math.ceil(distVal * 0.7);
 
-            displayUpcoming.reverse().forEach((item, revIndex) => {
-                const index = displayUpcoming.length - 1 - revIndex;
-                const dist = Math.abs(item.km - currentKM).toFixed(1);
-                const estTime = Math.ceil(dist * 0.7);
-                const isNext = index === 0;
+                distNode.innerHTML = `${distVal.toFixed(1)} <span class="text-xs text-slate-400">km</span>`;
+                timeNode.innerText = `約 ${estTime} 分`;
 
-                html += `
-                    <!-- 3 欄式絕對隔離網格：[36px 軌道專區 | 彈性路牌專區 | 距離資訊] -->
-                    <div class="grid grid-cols-[36px_1fr_auto] items-center min-h-[48px] relative">
-                        
-                        <!-- Col 1: 圓點標點 (絕對固定在軌道線上，零偏離、不壓字) -->
-                        <div class="relative h-full flex items-center justify-center">
-                            <div class="w-4 h-4 rounded-full z-10 ${isNext ? 'bg-amber-400 ring-4 ring-amber-400/30' : 'bg-slate-600'}"></div>
-                        </div>
+                const isPassed = (direction === 'S' ? item.km <= currentKM : item.km >= currentKM);
+                const isNext = item.id === nextExit.id;
 
-                        <!-- Col 2: 路牌與車速標籤 -->
-                        <div class="flex items-center space-x-2 overflow-hidden pl-1">
-                            <div class="${signClass} text-white px-3 py-1.5 rounded-xl font-bold flex items-center space-x-2 shadow-lg ${isNext ? 'scale-105 border-amber-300' : 'opacity-85'}">
-                                <span class="text-xs md:text-sm font-black border-r border-white/40 pr-1.5 font-mono">${item.id.replace('N','')}</span>
-                                <span class="text-sm md:text-base font-extrabold tracking-wider whitespace-nowrap break-keep">${item.name}</span>
-                            </div>
-                            ${getSpeedTag(item.segmentSpeed || 85)}
-                        </div>
-
-                        <!-- Col 3: 剩餘距離與預估時間 -->
-                        <div class="text-right pl-2 shrink-0">
-                            <div class="text-lg font-black ${isNext ? 'text-amber-400 font-mono' : 'text-slate-200 font-mono'}">${dist} <span class="text-xs text-slate-400">km</span></div>
-                            <div class="text-xs font-bold text-slate-400">約 ${estTime} 分</div>
-                        </div>
-
-                    </div>
-                `;
+                if (isNext) {
+                    dotNode.className = "w-4 h-4 rounded-full z-10 bg-amber-400 ring-4 ring-amber-400/30";
+                    distNode.className = "text-lg font-black text-amber-400 font-mono";
+                    rowNode.style.opacity = "1";
+                } else if (isPassed) {
+                    dotNode.className = "w-4 h-4 rounded-full z-10 bg-slate-700";
+                    distNode.className = "text-lg font-black text-slate-500 font-mono";
+                    rowNode.style.opacity = "0.3"; // 剛過站卡片漸隱滑出
+                } else {
+                    dotNode.className = "w-4 h-4 rounded-full z-10 bg-slate-600";
+                    distNode.className = "text-lg font-black text-slate-200 font-mono";
+                    rowNode.style.opacity = "1";
+                }
             });
 
-            html += `</div>`;
+            // 連續 Y 軸物理推進 (100% 靠 Transform，毫秒級流暢滾動)
+            const track = document.getElementById("scroll-track");
+            const gateYOffset = progressRatio * 52;
+            track.style.transform = `translateY(${gateYOffset}px)`;
 
-            // 最下方：綠色駕駛基準線 (卡片底端精準觸碰即表示抵達)
+            // 最下方底列動態狀態
             const dirLabel = getDirectionText(currentRouteKey, direction);
-
-            html += `
-                <div class="relative z-20 mt-auto pt-2 border-t-4 border-emerald-500 flex flex-col items-start pl-9 justify-center bg-[#1e293b]/95">
-                    <div class="bg-emerald-950/95 border border-emerald-500/80 text-emerald-300 px-3.5 py-1.5 rounded-xl shadow-2xl leading-tight max-w-full truncate">
-                        <div class="text-emerald-300 font-black text-xs md:text-sm tracking-wide truncate">📍 目前位置: ${currentKM.toFixed(2)} K (${dirLabel})</div>
-                        <div class="text-[10px] text-emerald-400/90 font-bold mt-0.5 truncate">距下個出口 (${nextExit.name}) ${Math.abs(nextExit.km - currentKM).toFixed(2)} km</div>
-                    </div>
-                </div>
-            `;
-
-            container.innerHTML = html;
+            document.getElementById("bottom-info-main").innerText = `📍 目前位置: ${currentKM.toFixed(2)} K (${dirLabel})`;
+            document.getElementById("bottom-info-sub").innerText = `距下個出口 (${nextExit.name}) ${Math.abs(nextExit.km - currentKM).toFixed(2)} km`;
         }
 
         async function requestWakeLock() {
