@@ -3,97 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- Web App / PWA 全螢幕設定 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="國道儀表板">
-    <title>國道閘道儀表板</title>
-    <!-- Tailwind CSS 快速佈局 -->
+    <title>國道路況儀表板</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
             -webkit-tap-highlight-color: transparent;
         }
     </style>
 </head>
-<body class="bg-black text-white min-h-screen flex flex-col p-4 justify-between select-none">
+<body class="bg-[#121824] text-white min-h-screen flex flex-col p-4 justify-between select-none">
 
-    <!-- 頂部：當前位置與車速 -->
-    <header class="bg-gray-900 border border-gray-800 rounded-2xl p-4 flex justify-between items-center shadow-lg">
-        <div>
-            <div class="text-xs text-gray-400 font-bold uppercase tracking-wider">目前位置</div>
-            <div id="current-km" class="text-4xl font-extrabold text-green-400 font-mono">--.- K</div>
+    <!-- 頂部資訊列：縮小後的時速與當前 K 數 -->
+    <header class="bg-[#1a2332] border border-gray-700/50 rounded-2xl p-4 flex justify-between items-center shadow-lg">
+        <div class="flex items-center space-x-3">
+            <div class="bg-green-600 text-white font-black px-2.5 py-1 rounded-lg flex items-center text-sm shadow">
+                <span class="mr-1">🌸</span> 國1
+            </div>
+            <div>
+                <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider">目前位置</div>
+                <div id="current-km" class="text-2xl font-black text-green-400 font-mono">--.- K</div>
+            </div>
         </div>
-        <div class="text-right">
-            <div class="text-xs text-gray-400 font-bold uppercase tracking-wider">時速</div>
-            <div id="current-speed" class="text-3xl font-bold text-white">0 <span class="text-sm font-normal text-gray-400">km/h</span></div>
+        <div class="text-right flex items-baseline space-x-1">
+            <span id="current-speed" class="text-3xl font-black text-white">0</span>
+            <span class="text-xs font-bold text-gray-400">km/h</span>
         </div>
     </header>
 
-    <!-- 中間核心：下一個閘道重點提示 -->
-    <main class="my-auto py-4">
-        <div class="bg-gradient-to-b from-blue-950 to-gray-900 border-2 border-blue-500/50 rounded-3xl p-6 text-center shadow-2xl relative overflow-hidden">
-            <div class="text-orange-400 text-xs font-bold tracking-widest uppercase mb-1">NEXT EXIT / 下一個閘道</div>
-            <div id="next-name" class="text-3xl font-black text-white my-2">搜尋 GPS 定位中...</div>
+    <!-- 主體：國道路線軸 (Timeline) 風格 -->
+    <main class="my-auto py-4 flex-1 flex flex-col justify-center">
+        <div class="bg-[#1a2332]/80 border border-gray-700/60 rounded-3xl p-5 shadow-2xl backdrop-blur relative overflow-hidden">
             
-            <div class="flex justify-center items-baseline my-2">
-                <span id="next-distance" class="text-7xl font-black text-yellow-400 font-mono tracking-tight">--.-</span>
-                <span class="text-2xl font-bold text-yellow-400 ml-2">公里</span>
+            <div class="text-center text-xs font-bold text-gray-400 tracking-wider mb-4 border-b border-gray-700/50 pb-2 flex justify-between px-2">
+                <span>前方路況與閘道資訊</span>
+                <span id="direction-tag" class="text-blue-400">南下順向</span>
             </div>
-            
-            <div id="next-km" class="text-gray-400 text-sm">請確定已允許 GPS 定位權限</div>
+
+            <!-- 垂直動態路線清單容器 -->
+            <div id="timeline-container" class="relative space-y-3">
+                <div class="text-center text-gray-500 py-8 text-sm">搜尋 GPS 定位中...</div>
+            </div>
+
         </div>
     </main>
 
-    <!-- 下半部：未來閘道預覽 -->
-    <footer class="bg-gray-900 border border-gray-800 rounded-2xl p-4 max-h-52 flex flex-col">
-        <div class="text-xs text-gray-400 font-bold uppercase tracking-wider mb-2">前方閘道預覽</div>
-        <div id="upcoming-list" class="overflow-y-auto space-y-2 pr-1">
-            <div class="text-sm text-gray-500 text-center py-2">尚未取得座標</div>
-        </div>
+    <!-- 頁尾狀態列 -->
+    <footer class="text-center text-[11px] text-gray-500 pb-2">
+        <span id="status-text">請允許位置存取以啟動即時追蹤</span>
     </footer>
 
     <!-- 邏輯腳本 -->
     <script>
-        // 內嵌國道一號主要交流道資料
+        // 交流道資料庫
         const highwayData = [
-            // --- 南下 (S) ---
-            { "id": "N1-000S", "freeway": "國道1號", "name": "基隆端", "direction": "S", "km": 0.0, "lat": 25.128, "lng": 121.740 },
-            { "id": "N1-025S", "freeway": "國道1號", "name": "台北", "direction": "S", "km": 25.1, "lat": 25.071, "lng": 121.516 },
-            { "id": "N1-033S", "freeway": "國道1號", "name": "五股", "direction": "S", "km": 33.1, "lat": 25.060, "lng": 121.438 },
-            { "id": "N1-041S", "freeway": "國道1號", "name": "林口", "direction": "S", "km": 41.5, "lat": 25.068, "lng": 121.364 },
-            { "id": "N1-049S", "freeway": "國道1號", "name": "桃園", "direction": "S", "km": 49.1, "lat": 25.034, "lng": 121.298 },
-            { "id": "N1-052S", "freeway": "國道1號", "name": "機場系統", "direction": "S", "km": 52.5, "lat": 25.031, "lng": 121.282 },
-            { "id": "N1-057S", "freeway": "國道1號", "name": "中壢", "direction": "S", "km": 57.0, "lat": 24.981, "lng": 121.242 },
-            { "id": "N1-062S", "freeway": "國道1號", "name": "平鎮系統", "direction": "S", "km": 62.4, "lat": 24.942, "lng": 121.208 },
-            { "id": "N1-069S", "freeway": "國道1號", "name": "楊梅", "direction": "S", "km": 69.2, "lat": 24.908, "lng": 121.147 },
-            { "id": "N1-083S", "freeway": "國道1號", "name": "湖口", "direction": "S", "km": 83.5, "lat": 24.896, "lng": 121.045 },
-            { "id": "N1-091S", "freeway": "國道1號", "name": "竹北", "direction": "S", "km": 91.0, "lat": 24.839, "lng": 121.011 },
-            { "id": "N1-095S", "freeway": "國道1號", "name": "新竹", "direction": "S", "km": 95.5, "lat": 24.798, "lng": 120.997 },
-            { "id": "N1-110S", "freeway": "國道1號", "name": "頭份", "direction": "S", "km": 110.4, "lat": 24.689, "lng": 120.908 },
-            { "id": "N1-178S", "freeway": "國道1號", "name": "台中", "direction": "S", "km": 178.6, "lat": 24.170, "lng": 120.635 },
-            { "id": "N1-367S", "freeway": "國道1號", "name": "高雄", "direction": "S", "km": 367.0, "lat": 22.628, "lng": 120.332 },
+            { "id": "34", "freeway": "國道1號", "name": "高公局", "direction": "S", "km": 34.1, "lat": 25.053, "lng": 121.430 },
+            { "id": "35", "freeway": "國道1號", "name": "泰山轉接道", "direction": "S", "km": 35.8, "lat": 25.057, "lng": 121.420 },
+            { "id": "41", "freeway": "國道1號", "name": "林口", "direction": "S", "km": 41.5, "lat": 25.068, "lng": 121.364 },
+            { "id": "49", "freeway": "國道1號", "name": "桃園", "direction": "S", "km": 49.1, "lat": 25.034, "lng": 121.298 },
+            { "id": "52", "freeway": "國道1號", "name": "機場系統", "direction": "S", "km": 52.5, "lat": 25.031, "lng": 121.282 },
+            { "id": "57", "freeway": "國道1號", "name": "中壢", "direction": "S", "km": 57.0, "lat": 24.981, "lng": 121.242 },
+            { "id": "69", "freeway": "國道1號", "name": "楊梅", "direction": "S", "km": 69.2, "lat": 24.908, "lng": 121.147 },
 
-            // --- 北上 (N) ---
-            { "id": "N1-367N", "freeway": "國道1號", "name": "高雄", "direction": "N", "km": 367.0, "lat": 22.628, "lng": 120.332 },
-            { "id": "N1-178N", "freeway": "國道1號", "name": "台中", "direction": "N", "km": 178.6, "lat": 24.170, "lng": 120.635 },
-            { "id": "N1-110N", "freeway": "國道1號", "name": "頭份", "direction": "N", "km": 110.4, "lat": 24.689, "lng": 120.908 },
-            { "id": "N1-095N", "freeway": "國道1號", "name": "新竹", "direction": "N", "km": 95.5, "lat": 24.798, "lng": 120.997 },
-            { "id": "N1-091N", "freeway": "國道1號", "name": "竹北", "direction": "N", "km": 91.0, "lat": 24.839, "lng": 121.011 },
-            { "id": "N1-083N", "freeway": "國道1號", "name": "湖口", "direction": "N", "km": 83.5, "lat": 24.896, "lng": 121.045 },
-            { "id": "N1-069N", "freeway": "國道1號", "name": "楊梅", "direction": "N", "km": 69.2, "lat": 24.908, "lng": 121.147 },
-            { "id": "N1-062N", "freeway": "國道1號", "name": "平鎮系統", "direction": "N", "km": 62.4, "lat": 24.942, "lng": 121.208 },
-            { "id": "N1-057N", "freeway": "國道1號", "name": "中壢", "direction": "N", "km": 57.0, "lat": 24.981, "lng": 121.242 },
-            { "id": "N1-052N", "freeway": "國道1號", "name": "機場系統", "direction": "N", "km": 52.5, "lat": 25.031, "lng": 121.282 },
-            { "id": "N1-049N", "freeway": "國道1號", "name": "桃園", "direction": "N", "km": 49.1, "lat": 25.034, "lng": 121.298 },
-            { "id": "N1-041N", "freeway": "國道1號", "name": "林口", "direction": "N", "km": 41.5, "lat": 25.068, "lng": 121.364 },
-            { "id": "N1-033N", "freeway": "國道1號", "name": "五股", "direction": "N", "km": 33.1, "lat": 25.060, "lng": 121.438 },
-            { "id": "N1-025N", "freeway": "國道1號", "name": "台北", "direction": "N", "km": 25.1, "lat": 25.071, "lng": 121.516 },
-            { "id": "N1-000N", "freeway": "國道1號", "name": "基隆端", "direction": "N", "km": 0.0, "lat": 25.128, "lng": 121.740 }
+            { "id": "69N", "freeway": "國道1號", "name": "楊梅", "direction": "N", "km": 69.2, "lat": 24.908, "lng": 121.147 },
+            { "id": "57N", "freeway": "國道1號", "name": "中壢", "direction": "N", "km": 57.0, "lat": 24.981, "lng": 121.242 },
+            { "id": "52N", "freeway": "國道1號", "name": "機場系統", "direction": "N", "km": 52.5, "lat": 25.031, "lng": 121.282 },
+            { "id": "49N", "freeway": "國道1號", "name": "桃園", "direction": "N", "km": 49.1, "lat": 25.034, "lng": 121.298 },
+            { "id": "41N", "freeway": "國道1號", "name": "林口", "direction": "N", "km": 41.5, "lat": 25.068, "lng": 121.364 },
+            { "id": "35N", "freeway": "國道1號", "name": "泰山轉接道", "direction": "N", "km": 35.8, "lat": 25.057, "lng": 121.420 },
+            { "id": "34N", "freeway": "國道1號", "name": "高公局", "direction": "N", "km": 34.1, "lat": 25.053, "lng": 121.430 }
         ];
 
-        // 計算經緯度距離 (Haversine Formula)
         function getDistanceKM(lat1, lon1, lat2, lon2) {
             const R = 6371;
             const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -115,9 +97,8 @@
                     let heading = position.coords.heading;
                     const speed = position.coords.speed ? Math.round(position.coords.speed * 3.6) : 0;
 
-                    document.getElementById("current-speed").innerHTML = `${speed} <span class="text-sm font-normal text-gray-400">km/h</span>`;
+                    document.getElementById("current-speed").innerText = speed;
 
-                    // 自動根據前後定位點補算 Heading (若原生 heading 為 null)
                     if ((heading === null || isNaN(heading)) && lastLat !== null) {
                         const dLng = lng - lastLng;
                         const dLat = lat - lastLat;
@@ -128,15 +109,14 @@
                     lastLat = lat;
                     lastLng = lng;
 
-                    // 判斷南下 (S) 或北上 (N)
                     let currentDirection = "S";
                     if (heading !== null && !isNaN(heading)) {
                         currentDirection = (heading >= 90 && heading <= 270) ? "S" : "N";
                     }
 
-                    const activeData = highwayData.filter(item => item.direction === currentDirection);
+                    document.getElementById("direction-tag").innerText = currentDirection === "S" ? "南下" : "北上";
 
-                    // 找出離目前 GPS 最近的交流道點
+                    const activeData = highwayData.filter(item => item.direction === currentDirection);
                     let nearest = activeData[0];
                     let minDistance = getDistanceKM(lat, lng, nearest.lat, nearest.lng);
 
@@ -148,7 +128,6 @@
                         }
                     });
 
-                    // 算當前估計 K 數
                     let currentKM = nearest.km;
                     if (currentDirection === "S") {
                         currentKM = (lat < nearest.lat) ? (nearest.km + minDistance) : (nearest.km - minDistance);
@@ -158,8 +137,9 @@
                     currentKM = Math.max(0, currentKM);
 
                     document.getElementById("current-km").innerText = `${currentKM.toFixed(1)} K`;
+                    document.getElementById("status-text").innerText = "GPS 定位正常運作中";
 
-                    // 篩選前方交流道
+                    // 篩選前方交流道 (顯示前 4 個)
                     let upcoming = [];
                     if (currentDirection === "S") {
                         upcoming = activeData.filter(item => item.km > currentKM).sort((a, b) => a.km - b.km);
@@ -167,34 +147,53 @@
                         upcoming = activeData.filter(item => item.km < currentKM).sort((a, b) => b.km - a.km);
                     }
 
-                    if (upcoming.length > 0) {
-                        const next = upcoming[0];
-                        const distToNext = Math.abs(next.km - currentKM);
-
-                        document.getElementById("next-name").innerText = `${next.freeway} ${next.name}`;
-                        document.getElementById("next-distance").innerText = distToNext.toFixed(1);
-                        document.getElementById("next-km").innerText = `預計於 ${next.km.toFixed(1)} K 處駛離 (${currentDirection === "S" ? '南下' : '北上'})`;
-
-                        const listHtml = upcoming.slice(1, 6).map(item => `
-                            <div class="flex justify-between items-center bg-gray-800/60 p-2.5 rounded-lg text-sm">
-                                <span class="font-bold text-gray-200">${item.freeway} ${item.name}</span>
-                                <span class="font-mono text-gray-400">${item.km.toFixed(1)} K</span>
-                            </div>
-                        `).join('');
-                        document.getElementById("upcoming-list").innerHTML = listHtml || `<div class="text-xs text-gray-500 text-center py-2">前方已無預設閘道</div>`;
-                    } else {
-                        document.getElementById("next-name").innerText = "前方無更多閘道";
-                        document.getElementById("next-distance").innerText = "0.0";
-                        document.getElementById("next-km").innerText = "已抵達終點或離開放行路段";
-                    }
+                    renderTimelineUI(upcoming, currentKM);
                 },
                 (error) => {
-                    document.getElementById("next-name").innerText = "定位授權失敗";
+                    document.getElementById("status-text").innerText = "無法取得 GPS 定位";
                 },
                 { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
             );
-        } else {
-            alert("您的裝置或瀏覽器不支援 GPS 定位");
+        }
+
+        // 渲染路線軸介面
+        function renderTimelineUI(upcoming, currentKM) {
+            const container = document.getElementById("timeline-container");
+            if (upcoming.length === 0) {
+                container.innerHTML = `<div class="text-center text-gray-500 py-6">前方無更多閘道資訊</div>`;
+                return;
+            }
+
+            const displayList = upcoming.slice(0, 4);
+            let html = `<div class="relative pl-6 space-y-6 before:absolute before:left-3.5 before:top-3 before:bottom-3 before:w-1 before:bg-gray-700/80">`;
+
+            displayList.forEach((item, index) => {
+                const dist = Math.abs(item.km - currentKM).toFixed(1);
+                const estTime = Math.ceil(dist * 0.7); // 粗略估算時間
+                const isNext = index === 0;
+
+                html += `
+                    <div class="relative flex items-center justify-between">
+                        <!-- 路線軸上的節點圓點 -->
+                        <div class="absolute -left-6 w-3.5 h-3.5 rounded-full ${isNext ? 'bg-amber-400 ring-4 ring-amber-400/30' : 'bg-gray-600'}"></div>
+                        
+                        <!-- 左側：黃底出口標牌 -->
+                        <div class="flex items-center space-x-2 bg-amber-400 text-black px-3 py-1.5 rounded-xl font-bold shadow-md">
+                            <span class="text-sm font-black border-r border-black/30 pr-2">${item.id.replace('N','')}</span>
+                            <span class="text-base font-extrabold tracking-wide">${item.name}</span>
+                        </div>
+
+                        <!-- 右側：距離與預估時間 -->
+                        <div class="text-right">
+                            <div class="text-lg font-black ${isNext ? 'text-amber-400 font-mono' : 'text-gray-200 font-mono'}">${dist} <span class="text-xs text-gray-400">km</span></div>
+                            <div class="text-[11px] font-bold text-gray-400">約 ${estTime} 分鐘</div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+            container.innerHTML = html;
         }
 
         // 螢幕防休眠
