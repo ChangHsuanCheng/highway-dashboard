@@ -23,7 +23,7 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
         }
         .gate-row {
-            height: 70px; /* 固定幾何高度，確保貼線 100% 精準 */
+            height: 70px; /* 固定幾何高度，確保對齊精準 */
         }
     </style>
 </head>
@@ -77,7 +77,7 @@
     <div id="sim-panel" class="hidden my-2 bg-slate-800 border border-amber-500/50 rounded-xl p-3 text-xs space-y-2">
         <div class="font-bold text-amber-400 flex justify-between items-center">
             <span>⚙️ 模擬參數設定</span>
-            <span class="text-[10px] text-slate-400">正確方向：近在下，遠在上</span>
+            <span class="text-[10px] text-slate-400">零閃爍 + 可調Offset距離對齊</span>
         </div>
         <div class="grid grid-cols-3 gap-2">
             <div>
@@ -108,6 +108,12 @@
     </footer>
 
     <script>
+        // 🟢 綠線對齊距離偏差微調 (單位: px)
+        // 預設 0 代表卡片底邊剛好壓在綠線上
+        // - 正數（如 +10）：卡片會更往下滑，超過綠線才歸零
+        // - 負數（如 -10）：卡片會提早在綠線上方（距離綠線 10px 時）就顯示 0.0 km
+        const LINE_OFFSET_PX = 0; 
+
         const routesDatabase = {
             "國1": { name: "國1", express: false, type: "NS", nodes: [
                 { "id": "0", "freeway": "國道1號", "name": "基隆端", "direction": "S", "km": 0.0, "lat": 25.128, "lng": 121.740, "segmentSpeed": 85 },
@@ -132,8 +138,22 @@
                 { "id": "83", "freeway": "國道1號", "name": "湖口", "direction": "S", "km": 83.5, "lat": 24.896, "lng": 121.045, "segmentSpeed": 90 },
                 { "id": "91", "freeway": "國道1號", "name": "竹北", "direction": "S", "km": 91.0, "lat": 24.839, "lng": 121.011, "segmentSpeed": 88 },
                 { "id": "95", "freeway": "國道1號", "name": "新竹", "direction": "S", "km": 95.5, "lat": 24.798, "lng": 120.997, "segmentSpeed": 85 },
+                { "id": "110", "freeway": "國道1號", "name": "頭份", "direction": "S", "km": 110.4, "lat": 24.689, "lng": 120.908, "segmentSpeed": 92 },
+                { "id": "132", "freeway": "國道1號", "name": "苗栗", "direction": "S", "km": 132.8, "lat": 24.538, "lng": 120.812, "segmentSpeed": 98 },
+                { "id": "178", "freeway": "國道1號", "name": "台中", "direction": "S", "km": 178.6, "lat": 24.170, "lng": 120.635, "segmentSpeed": 82 },
+                { "id": "198", "freeway": "國道1號", "name": "彰化", "direction": "S", "km": 198.1, "lat": 24.068, "lng": 120.515, "segmentSpeed": 88 },
+                { "id": "264", "freeway": "國道1號", "name": "嘉義", "direction": "S", "km": 264.3, "lat": 23.498, "lng": 120.405, "segmentSpeed": 100 },
+                { "id": "327", "freeway": "國道1號", "name": "台南", "direction": "S", "km": 327.4, "lat": 23.003, "lng": 120.242, "segmentSpeed": 95 },
+                { "id": "367", "freeway": "國道1號", "name": "高雄", "direction": "S", "km": 367.0, "lat": 22.628, "lng": 120.332, "segmentSpeed": 80 },
 
                 // 北上 (N)
+                { "id": "367N", "freeway": "國道1號", "name": "高雄", "direction": "N", "km": 367.0, "lat": 22.628, "lng": 120.332, "segmentSpeed": 80 },
+                { "id": "327N", "freeway": "國道1號", "name": "台南", "direction": "N", "km": 327.4, "lat": 23.003, "lng": 120.242, "segmentSpeed": 95 },
+                { "id": "264N", "freeway": "國道1號", "name": "嘉義", "direction": "N", "km": 264.3, "lat": 23.498, "lng": 120.405, "segmentSpeed": 100 },
+                { "id": "198N", "freeway": "國道1號", "name": "彰化", "direction": "N", "km": 198.1, "lat": 24.068, "lng": 120.515, "segmentSpeed": 88 },
+                { "id": "178N", "freeway": "國道1號", "name": "台中", "direction": "N", "km": 178.6, "lat": 24.170, "lng": 120.635, "segmentSpeed": 82 },
+                { "id": "132N", "freeway": "國道1號", "name": "苗栗", "direction": "N", "km": 132.8, "lat": 24.538, "lng": 120.812, "segmentSpeed": 98 },
+                { "id": "110N", "freeway": "國道1號", "name": "頭份", "direction": "N", "km": 110.4, "lat": 24.689, "lng": 120.908, "segmentSpeed": 92 },
                 { "id": "95N", "freeway": "國道1號", "name": "新竹", "direction": "N", "km": 95.5, "lat": 24.798, "lng": 120.997, "segmentSpeed": 85 },
                 { "id": "91N", "freeway": "國道1號", "name": "竹北", "direction": "N", "km": 91.0, "lat": 24.839, "lng": 121.011, "segmentSpeed": 88 },
                 { "id": "83N", "freeway": "國道1號", "name": "湖口", "direction": "N", "km": 83.5, "lat": 24.896, "lng": 121.045, "segmentSpeed": 90 },
@@ -490,9 +510,9 @@
             const nextIndex = sortedNodes.findIndex(n => n.id === nextExit.id);
             const totalNodesCount = sortedNodes.length;
 
-            // 幾何對齊：將 nextExit 精確錨定在最底部的綠線上方，並隨進度向下推進 (progressRatio * 70px)
+            // 幾何對齊：將 nextExit 精確錨定在最底部的綠線上方，並隨進度向下推進 (progressRatio * 70px + LINE_OFFSET_PX)
             const cardHeight = 70;
-            const targetY = -((nextIndex - (totalNodesCount - 3)) * cardHeight) + (progressRatio * cardHeight);
+            const targetY = -((nextIndex - (totalNodesCount - 3)) * cardHeight) + (progressRatio * cardHeight) + LINE_OFFSET_PX;
 
             // 更新 DOM 狀態
             sortedNodes.forEach((item) => {
