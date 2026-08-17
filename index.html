@@ -26,10 +26,9 @@
 </head>
 <body class="bg-[#0f172a] text-white min-h-screen flex flex-col p-3 justify-between select-none">
 
-    <!-- 頂部資訊列：自動辨識道路徽章 + 當前 K 數 + 車速 -->
+    <!-- 頂部資訊列：道路徽章 + 當前 K 數 + 車速 -->
     <header class="bg-[#1e293b] border border-slate-700/80 rounded-2xl p-4 flex justify-between items-center shadow-xl mb-3">
         <div class="flex items-center space-x-3">
-            <!-- 自動辨識顯示牌 -->
             <div id="route-badge" class="bg-[#007A3D] text-white font-black px-3 py-1 rounded-xl text-base tracking-wider shadow border border-white/80">
                 國1
             </div>
@@ -65,17 +64,44 @@
 
     </main>
 
+    <!-- 模擬行車控制選單面板 (彈出式) -->
+    <div id="sim-panel" class="hidden my-2 bg-slate-800 border border-amber-500/50 rounded-xl p-3 text-xs space-y-2">
+        <div class="font-bold text-amber-400 flex justify-between items-center">
+            <span>⚙️ 模擬參數設定</span>
+            <span class="text-[10px] text-slate-400">測試模式開啟中</span>
+        </div>
+        <div class="grid grid-cols-3 gap-2">
+            <div>
+                <label class="text-slate-400 block mb-1">道路</label>
+                <select id="sim-route" class="bg-slate-900 text-white p-1.5 rounded border border-slate-700 w-full font-bold">
+                    <option value="國1">國1</option>
+                    <option value="國3">國3</option>
+                    <option value="台64">台64</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-slate-400 block mb-1">方向</label>
+                <select id="sim-dir" class="bg-slate-900 text-white p-1.5 rounded border border-slate-700 w-full font-bold">
+                    <option value="S">南下/東向</option>
+                    <option value="N">北上/西向</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-slate-400 block mb-1">時速 (km/h)</label>
+                <input id="sim-speed" type="number" value="100" class="bg-slate-900 text-white p-1.5 rounded border border-slate-700 w-full font-mono font-bold text-center">
+            </div>
+        </div>
+    </div>
+
     <!-- 頁尾狀態列與模擬測試開關 -->
-    <footer class="flex justify-between items-center text-xs text-slate-500 pt-2 pb-1 px-1">
+    <footer class="flex justify-between items-center text-xs text-slate-500 pt-1 pb-1 px-1">
         <span id="status-text">請允許位置存取以啟動即時追蹤</span>
-        <!-- 模擬開關按鈕 -->
         <button onclick="toggleSimulation()" id="sim-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center">
             🎮 模擬行車: OFF
         </button>
     </footer>
 
     <script>
-        // 多路線資料庫
         const routesDatabase = {
             "國1": { name: "國1", express: false, nodes: [
                 { "id": "34", "freeway": "國道1號", "name": "高公局", "direction": "S", "km": 34.1, "lat": 25.053, "lng": 121.430, "segmentSpeed": 78 },
@@ -112,7 +138,7 @@
         let currentRouteKey = "國1";
         let isSimulation = false;
         let simInterval = null;
-        let simLat = 25.068; // 林口出發經緯度
+        let simLat = 25.068;
         let simLng = 121.364;
 
         function getDistanceKM(lat1, lon1, lat2, lon2) {
@@ -125,8 +151,16 @@
             return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
         }
 
-        // 🧠 自動道路辨識演算法：傳入 GPS 座標，自動找出最近的道路
+        function updateRouteBadge(rKey) {
+            currentRouteKey = rKey;
+            const rData = routesDatabase[currentRouteKey];
+            const badge = document.getElementById("route-badge");
+            badge.innerText = rData.name;
+            badge.className = `${rData.express ? 'bg-[#C00000]' : 'bg-[#007A3D]'} text-white font-black px-3 py-1 rounded-xl text-base tracking-wider shadow border border-white/80`;
+        }
+
         function autoDetectRoute(lat, lng) {
+            if (isSimulation) return; // 模擬模式由使用者指定道路
             let bestRoute = currentRouteKey;
             let minMinDist = 999;
 
@@ -141,26 +175,18 @@
                 });
             });
 
-            if (bestRoute !== currentRouteKey && minMinDist < 5.0) { // 距離5公里內自動切換道路
-                currentRouteKey = bestRoute;
-                const rData = routesDatabase[currentRouteKey];
-                const badge = document.getElementById("route-badge");
-                badge.innerText = rData.name;
-                badge.className = `${rData.express ? 'bg-[#C00000]' : 'bg-[#007A3D]'} text-white font-black px-3 py-1 rounded-xl text-base tracking-wider shadow border border-white/80`;
+            if (bestRoute !== currentRouteKey && minMinDist < 5.0) {
+                updateRouteBadge(bestRoute);
             }
         }
 
-        // 核心計算與處理
-        function processLocationUpdate(lat, lng, heading, speed) {
+        function processLocationUpdate(lat, lng, heading, speed, forceDirection = null) {
             document.getElementById("current-speed").innerText = speed;
-
-            // 1. 自動辨識道路
             autoDetectRoute(lat, lng);
 
-            // 2. 自動辨識方向 (南下 90~270度，其餘北上)
-            let currentDirection = "S";
-            if (heading !== null && !isNaN(heading)) {
-                currentDirection = (heading >= 90 && heading <= 270) ? "S" : "N";
+            let currentDirection = forceDirection;
+            if (!currentDirection) {
+                currentDirection = (heading !== null && !isNaN(heading) && heading >= 90 && heading <= 270) ? "S" : "N";
             }
             document.getElementById("direction-tag").innerText = currentDirection === "S" ? "南下/東向" : "北上/西向";
 
@@ -198,31 +224,60 @@
             renderTimelineUI(upcoming, currentKM, activeData);
         }
 
-        // 🎮 模擬測試功能開關
+        // 🎮 開啟/關閉模擬面板
         function toggleSimulation() {
             isSimulation = !isSimulation;
             const btn = document.getElementById("sim-btn");
+            const panel = document.getElementById("sim-panel");
 
             if (isSimulation) {
                 btn.innerText = "🎮 模擬行車: ON";
                 btn.className = "bg-amber-600 text-white border border-amber-400 px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center animate-pulse";
-                document.getElementById("status-text").innerText = "行車模擬運作中 (南下 100 km/h)...";
+                panel.classList.remove("hidden");
 
-                simLat = 25.068; // 從林口 41.5K 開始南下
-                simLng = 121.364;
-
-                simInterval = setInterval(() => {
-                    simLat -= 0.0003; // 模擬往南移動
-                    simLng -= 0.0002;
-                    processLocationUpdate(simLat, simLng, 180, 102); // 模擬速度 102 km/h，方向 180度 (正南)
-                }, 1000);
+                startSimulationLoop();
             } else {
                 btn.innerText = "🎮 模擬行車: OFF";
                 btn.className = "bg-slate-800 text-slate-300 border border-slate-600 px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center";
+                panel.classList.add("hidden");
                 document.getElementById("status-text").innerText = "已恢復真實 GPS 定位";
+                document.getElementById("auto-route-tag").innerText = "自動辨識";
                 clearInterval(simInterval);
             }
         }
+
+        // 啟動指定道路與方向的模擬迴圈
+        function startSimulationLoop() {
+            if (simInterval) clearInterval(simInterval);
+
+            const simRoute = document.getElementById("sim-route").value;
+            const simDir = document.getElementById("sim-dir").value;
+            const userSpeed = parseInt(document.getElementById("sim-speed").value) || 100;
+
+            updateRouteBadge(simRoute);
+            document.getElementById("auto-route-tag").innerText = "模擬測試中";
+
+            // 抓取該道路第一個節點座標作為起點
+            const nodes = routesDatabase[simRoute].nodes.filter(n => n.direction === simDir);
+            if (nodes.length > 0) {
+                simLat = nodes[0].lat;
+                simLng = nodes[0].lng;
+            }
+
+            const latDelta = simDir === "S" ? -0.0003 : 0.0003;
+            const headingVal = simDir === "S" ? 180 : 0;
+
+            simInterval = setInterval(() => {
+                simLat += latDelta;
+                simLng += (latDelta * 0.5);
+                processLocationUpdate(simLat, simLng, headingVal, userSpeed, simDir);
+            }, 1000);
+        }
+
+        // 監聽模擬選單變更，即時切換模擬參數
+        document.getElementById("sim-route").addEventListener("change", () => { if (isSimulation) startSimulationLoop(); });
+        document.getElementById("sim-dir").addEventListener("change", () => { if (isSimulation) startSimulationLoop(); });
+        document.getElementById("sim-speed").addEventListener("input", () => { if (isSimulation) startSimulationLoop(); });
 
         // 真實 GPS 監聽
         let lastLat = null;
@@ -231,7 +286,7 @@
         if ("geolocation" in navigator) {
             navigator.geolocation.watchPosition(
                 (position) => {
-                    if (isSimulation) return; // 模擬模式啟動時暫停真實 GPS 覆蓋
+                    if (isSimulation) return;
 
                     const lat = position.coords.latitude;
                     const lng = position.coords.longitude;
