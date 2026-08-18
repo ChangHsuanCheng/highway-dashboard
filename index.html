@@ -14,13 +14,13 @@
         }
         .highway-sign {
             background-color: #007A3D;
-            border: 2px solid #FFFFFF;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+            border: 2.5px solid #FFFFFF;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
         }
         .express-sign {
             background-color: #C00000;
-            border: 2px solid #FFFFFF;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+            border: 2.5px solid #FFFFFF;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
         }
         html, body {
             width: 100%;
@@ -36,63 +36,71 @@
         }
 
         .gate-row {
-            height: 62px; /* 放大版卡片列高 */
-            min-height: 62px;
-            flex: 0 0 62px;
+            height: 72px;
+            min-height: 72px;
+            flex: 0 0 72px;
         }
     </style>
 </head>
 <body class="bg-[#0f172a] text-white h-screen w-screen flex flex-col p-3 pt-10 select-none overflow-hidden box-border">
 
+    <!-- 頂部資訊列 -->
     <header class="bg-[#1e293b] border border-slate-700/80 rounded-2xl p-4 flex justify-between items-center shadow-xl mb-3 shrink-0">
         <div class="flex items-center space-x-3">
-            <div id="route-badge" class="bg-[#007A3D] text-white font-black px-3.5 py-1.5 rounded-xl text-lg tracking-wider shadow border border-white/80">
+            <div id="route-badge" class="bg-[#007A3D] text-white font-black px-3.5 py-1.5 rounded-xl text-lg tracking-wider shadow border-2 border-white">
                 國1
             </div>
             <div>
-                <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider flex items-center">
-                    目前位置 <span id="auto-route-tag" class="ml-1 text-[9px] text-emerald-400 border border-emerald-500/40 px-1 rounded">全台GPS自動辨識</span>
+                <div class="text-xs text-slate-400 font-bold uppercase tracking-wider flex items-center">
+                    目前位置 <span id="auto-route-tag" class="ml-1.5 text-[10px] text-emerald-400 border border-emerald-500/40 px-1.5 rounded">全台GPS自動辨識</span>
                 </div>
-                <div id="current-km" class="text-3xl md:text-4xl font-black text-emerald-400 font-mono tracking-tight">--.- K</div>
+                <div id="current-km" class="text-3xl md:text-5xl font-black text-emerald-400 font-mono tracking-tight">--.- K</div>
             </div>
         </div>
-        <div class="text-right flex items-baseline space-x-1 bg-slate-900 px-4 py-2 rounded-xl border border-slate-700">
-            <span id="current-speed" class="text-3xl md:text-4xl font-black text-white font-mono">0</span>
-            <span class="text-xs font-bold text-slate-400">km/h</span>
+        <div class="text-right flex items-baseline space-x-1.5 bg-slate-900 px-4 py-2 rounded-xl border border-slate-700">
+            <span id="current-speed" class="text-4xl md:text-5xl font-black text-white font-mono">0</span>
+            <span class="text-xs md:text-sm font-bold text-slate-400">km/h</span>
         </div>
     </header>
 
+    <!-- 主體：極簡路線軸 -->
     <main class="flex-1 min-h-0 bg-[#1e293b]/90 border border-slate-700/80 rounded-2xl p-4 shadow-2xl flex flex-col relative overflow-hidden">
         
-        <div class="text-xs font-bold text-slate-400 tracking-wider border-b border-slate-700/60 pb-2 flex justify-between items-center z-10 shrink-0">
+        <!-- 頂部狀態列 -->
+        <div class="text-sm font-bold text-slate-400 tracking-wider border-b border-slate-700/60 pb-2 flex justify-between items-center z-10 shrink-0">
             <span class="flex items-center">
-                <span id="api-status-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
-                <span id="api-status-text">TDX 即時路況連線中...</span>
+                <span class="w-3 h-3 rounded-full bg-emerald-500 mr-2 animate-pulse"></span>
+                <span>國道 GPS 即時導航追蹤中</span>
             </span>
-            <span id="direction-tag" class="bg-blue-600/30 text-blue-400 border border-blue-500/30 px-3 py-0.5 rounded-md text-xs font-bold">自動辨識方向</span>
+            <span id="direction-tag" class="bg-blue-600/30 text-blue-400 border border-blue-500/30 px-3 py-1 rounded-md text-xs font-bold">自動辨識方向</span>
         </div>
 
+        <!-- 路線軸主區域 -->
         <div id="timeline-container" class="relative flex-1 min-h-0 my-2 flex flex-col justify-end overflow-hidden">
-            <div class="absolute left-[20px] top-0 bottom-0 w-1.5 bg-slate-700/80 rounded-full -translate-x-1/2 z-0"></div>
+            <!-- 貫穿縱向軸線 -->
+            <div class="absolute left-[22px] top-0 bottom-0 w-2 bg-slate-700/80 rounded-full -translate-x-1/2 z-0"></div>
 
+            <!-- 動態平滑滾動軌道 -->
             <div id="scroll-track" class="relative z-10 w-full shrink-0 transition-transform duration-200 ease-linear">
-                <div class="text-center text-slate-500 my-auto text-base">搜尋 GPS 定位中...</div>
+                <div class="text-center text-slate-500 my-auto text-lg">搜尋 GPS 定位中...</div>
             </div>
         </div>
 
-        <div class="relative z-20 pt-2 border-t-4 border-emerald-500 flex flex-col items-start pl-10 justify-center bg-[#1e293b]/95 shrink-0">
+        <!-- 最下方：駕駛位置綠線 -->
+        <div class="relative z-20 pt-2.5 border-t-4 border-emerald-500 flex flex-col items-start pl-11 justify-center bg-[#1e293b]/95 shrink-0">
             <div class="bg-emerald-950/95 border border-emerald-500/80 text-emerald-300 px-4 py-2 rounded-xl shadow-2xl leading-tight max-w-full truncate">
-                <div id="bottom-info-main" class="text-emerald-300 font-black text-sm md:text-base tracking-wide truncate">📍 目前位置: -- K</div>
-                <div id="bottom-info-sub" class="text-xs text-emerald-400/90 font-bold mt-0.5 truncate">距下個出口 -- km</div>
+                <div id="bottom-info-main" class="text-emerald-300 font-black text-base md:text-lg tracking-wide truncate">📍 目前位置: -- K</div>
+                <div id="bottom-info-sub" class="text-xs md:text-sm text-emerald-400/90 font-bold mt-0.5 truncate">距下個出口 -- km</div>
             </div>
         </div>
 
     </main>
 
+    <!-- 模擬行車控制選單面板 -->
     <div id="sim-panel" class="hidden my-2 bg-slate-800 border border-amber-500/50 rounded-xl p-3 text-xs space-y-2 shrink-0">
-        <div class="font-bold text-amber-400 flex justify-between items-center">
+        <div class="font-bold text-amber-400 flex justify-between items-center text-sm">
             <span>⚙️ 模擬參數設定</span>
-            <span class="text-[10px] text-slate-400">大字體高清比例模式</span>
+            <span class="text-xs text-slate-400">大字體 + 黃色光暈獨立無壓框模式</span>
         </div>
         <div class="grid grid-cols-3 gap-2">
             <div>
@@ -115,103 +123,104 @@
         </div>
     </div>
 
+    <!-- 頁尾狀態列 -->
     <footer class="flex justify-between items-center text-xs text-slate-500 pt-1 pb-1 px-1 shrink-0 min-h-0">
-        <span id="status-text">請允許位置存取以啟動即時追蹤</span>
-        <button onclick="toggleSimulation()" id="sim-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 px-2.5 py-1 rounded-lg text-[11px] font-bold flex items-center">
+        <span id="status-text" class="text-xs md:text-sm">請允許位置存取以啟動即時追蹤</span>
+        <button onclick="toggleSimulation()" id="sim-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-600 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center">
             🎮 模擬行車: OFF
         </button>
     </footer>
 
     <script>
         // ========================================================
-        // ⚙️ 調校參數開關
+        // ⚙️ 調校參數開關 (老大預設參數)
         // ========================================================
-        const CARD_HEIGHT_PX = 62;      // 放大版單高度 (62px)
-        const LINE_OFFSET_PX = 0;       // 觸碰綠線對齊微調 (px)
+        const CARD_HEIGHT_PX = 72;      // 卡片實體列高 (72px)
+        const LINE_OFFSET_PX = -70;     // 老大專屬綠線壓線微調參數 (-70px)
         // ========================================================
 
         const routesDatabase = {
             "國1": { name: "國1", express: false, type: "NS", nodes: [
-                { "id": "0", "freeway": "國道1號", "name": "基隆端", "direction": "S", "km": 0.0, "lat": 25.128, "lng": 121.740, "segmentSpeed": 85 },
-                { "id": "2", "freeway": "國道1號", "name": "八堵", "direction": "S", "km": 2.6, "lat": 25.108, "lng": 121.729, "segmentSpeed": 85 },
-                { "id": "6", "freeway": "國道1號", "name": "大華系統", "direction": "S", "km": 6.0, "lat": 25.088, "lng": 121.710, "segmentSpeed": 88 },
-                { "id": "9", "freeway": "國道1號", "name": "汐止", "direction": "S", "km": 9.6, "lat": 25.071, "lng": 121.660, "segmentSpeed": 80 },
-                { "id": "11", "freeway": "國道1號", "name": "汐止系統", "direction": "S", "km": 11.5, "lat": 25.060, "lng": 121.648, "segmentSpeed": 75 },
-                { "id": "15", "freeway": "國道1號", "name": "東湖", "direction": "S", "km": 15.2, "lat": 25.068, "lng": 121.611, "segmentSpeed": 82 },
-                { "id": "17", "freeway": "國道1號", "name": "內湖", "direction": "S", "km": 17.0, "lat": 25.063, "lng": 121.593, "segmentSpeed": 80 },
-                { "id": "23", "freeway": "國道1號", "name": "圓山", "direction": "S", "km": 23.2, "lat": 25.071, "lng": 121.531, "segmentSpeed": 75 },
-                { "id": "25", "freeway": "國道1號", "name": "台北", "direction": "S", "km": 25.1, "lat": 25.071, "lng": 121.516, "segmentSpeed": 80 },
-                { "id": "27", "freeway": "國道1號", "name": "三重", "direction": "S", "km": 27.1, "lat": 25.070, "lng": 121.492, "segmentSpeed": 82 },
-                { "id": "33", "freeway": "國道1號", "name": "五股", "direction": "S", "km": 33.1, "lat": 25.060, "lng": 121.438, "segmentSpeed": 85 },
-                { "id": "34", "freeway": "國道1號", "name": "高公局", "direction": "S", "km": 34.1, "lat": 25.053, "lng": 121.430, "segmentSpeed": 78 },
-                { "id": "35", "freeway": "國道1號", "name": "泰山轉接", "direction": "S", "km": 35.8, "lat": 25.057, "lng": 121.420, "segmentSpeed": 80 },
-                { "id": "41", "freeway": "國道1號", "name": "林口", "direction": "S", "km": 41.5, "lat": 25.068, "lng": 121.364, "segmentSpeed": 92 },
-                { "id": "49", "freeway": "國道1號", "name": "桃園", "direction": "S", "km": 49.1, "lat": 25.034, "lng": 121.298, "segmentSpeed": 58 },
-                { "id": "52", "freeway": "國道1號", "name": "機場系統", "direction": "S", "km": 52.5, "lat": 25.031, "lng": 121.282, "segmentSpeed": 54 },
-                { "id": "57", "freeway": "國道1號", "name": "中壢", "direction": "S", "km": 57.0, "lat": 24.981, "lng": 121.242, "segmentSpeed": 88 },
-                { "id": "62", "freeway": "國道1號", "name": "平鎮系統", "direction": "S", "km": 62.4, "lat": 24.942, "lng": 121.208, "segmentSpeed": 90 },
-                { "id": "69", "freeway": "國道1號", "name": "楊梅", "direction": "S", "km": 69.2, "lat": 24.908, "lng": 121.147, "segmentSpeed": 95 },
-                { "id": "83", "freeway": "國道1號", "name": "湖口", "direction": "S", "km": 83.5, "lat": 24.896, "lng": 121.045, "segmentSpeed": 90 },
-                { "id": "91", "freeway": "國道1號", "name": "竹北", "direction": "S", "km": 91.0, "lat": 24.839, "lng": 121.011, "segmentSpeed": 88 },
-                { "id": "95", "freeway": "國道1號", "name": "新竹", "direction": "S", "km": 95.5, "lat": 24.798, "lng": 120.997, "segmentSpeed": 85 },
-                { "id": "110", "freeway": "國道1號", "name": "頭份", "direction": "S", "km": 110.4, "lat": 24.689, "lng": 120.908, "segmentSpeed": 92 },
-                { "id": "132", "freeway": "國道1號", "name": "苗栗", "direction": "S", "km": 132.8, "lat": 24.538, "lng": 120.812, "segmentSpeed": 98 },
-                { "id": "178", "freeway": "國道1號", "name": "台中", "direction": "S", "km": 178.6, "lat": 24.170, "lng": 120.635, "segmentSpeed": 82 },
-                { "id": "198", "freeway": "國道1號", "name": "彰化", "direction": "S", "km": 198.1, "lat": 24.068, "lng": 120.515, "segmentSpeed": 88 },
-                { "id": "264", "freeway": "國道1號", "name": "嘉義", "direction": "S", "km": 264.3, "lat": 23.498, "lng": 120.405, "segmentSpeed": 100 },
-                { "id": "327", "freeway": "國道1號", "name": "台南", "direction": "S", "km": 327.4, "lat": 23.003, "lng": 120.242, "segmentSpeed": 95 },
-                { "id": "367", "freeway": "國道1號", "name": "高雄", "direction": "S", "km": 367.0, "lat": 22.628, "lng": 120.332, "segmentSpeed": 80 },
+                { "id": "0", "freeway": "國道1號", "name": "基隆端", "direction": "S", "km": 0.0, "lat": 25.128, "lng": 121.740 },
+                { "id": "2", "freeway": "國道1號", "name": "八堵", "direction": "S", "km": 2.6, "lat": 25.108, "lng": 121.729 },
+                { "id": "6", "freeway": "國道1號", "name": "大華系統", "direction": "S", "km": 6.0, "lat": 25.088, "lng": 121.710 },
+                { "id": "9", "freeway": "國道1號", "name": "汐止", "direction": "S", "km": 9.6, "lat": 25.071, "lng": 121.660 },
+                { "id": "11", "freeway": "國道1號", "name": "汐止系統", "direction": "S", "km": 11.5, "lat": 25.060, "lng": 121.648 },
+                { "id": "15", "freeway": "國道1號", "name": "東湖", "direction": "S", "km": 15.2, "lat": 25.068, "lng": 121.611 },
+                { "id": "17", "freeway": "國道1號", "name": "內湖", "direction": "S", "km": 17.0, "lat": 25.063, "lng": 121.593 },
+                { "id": "23", "freeway": "國道1號", "name": "圓山", "direction": "S", "km": 23.2, "lat": 25.071, "lng": 121.531 },
+                { "id": "25", "freeway": "國道1號", "name": "台北", "direction": "S", "km": 25.1, "lat": 25.071, "lng": 121.516 },
+                { "id": "27", "freeway": "國道1號", "name": "三重", "direction": "S", "km": 27.1, "lat": 25.070, "lng": 121.492 },
+                { "id": "33", "freeway": "國道1號", "name": "五股", "direction": "S", "km": 33.1, "lat": 25.060, "lng": 121.438 },
+                { "id": "34", "freeway": "國道1號", "name": "高公局", "direction": "S", "km": 34.1, "lat": 25.053, "lng": 121.430 },
+                { "id": "35", "freeway": "國道1號", "name": "泰山轉接", "direction": "S", "km": 35.8, "lat": 25.057, "lng": 121.420 },
+                { "id": "41", "freeway": "國道1號", "name": "林口", "direction": "S", "km": 41.5, "lat": 25.068, "lng": 121.364 },
+                { "id": "49", "freeway": "國道1號", "name": "桃園", "direction": "S", "km": 49.1, "lat": 25.034, "lng": 121.298 },
+                { "id": "52", "freeway": "國道1號", "name": "機場系統", "direction": "S", "km": 52.5, "lat": 25.031, "lng": 121.282 },
+                { "id": "57", "freeway": "國道1號", "name": "中壢", "direction": "S", "km": 57.0, "lat": 24.981, "lng": 121.242 },
+                { "id": "62", "freeway": "國道1號", "name": "平鎮系統", "direction": "S", "km": 62.4, "lat": 24.942, "lng": 121.208 },
+                { "id": "69", "freeway": "國道1號", "name": "楊梅", "direction": "S", "km": 69.2, "lat": 24.908, "lng": 121.147 },
+                { "id": "83", "freeway": "國道1號", "name": "湖口", "direction": "S", "km": 83.5, "lat": 24.896, "lng": 121.045 },
+                { "id": "91", "freeway": "國道1號", "name": "竹北", "direction": "S", "km": 91.0, "lat": 24.839, "lng": 121.011 },
+                { "id": "95", "freeway": "國道1號", "name": "新竹", "direction": "S", "km": 95.5, "lat": 24.798, "lng": 120.997 },
+                { "id": "110", "freeway": "國道1號", "name": "頭份", "direction": "S", "km": 110.4, "lat": 24.689, "lng": 120.908 },
+                { "id": "132", "freeway": "國道1號", "name": "苗栗", "direction": "S", "km": 132.8, "lat": 24.538, "lng": 120.812 },
+                { "id": "178", "freeway": "國道1號", "name": "台中", "direction": "S", "km": 178.6, "lat": 24.170, "lng": 120.635 },
+                { "id": "198", "freeway": "國道1號", "name": "彰化", "direction": "S", "km": 198.1, "lat": 24.068, "lng": 120.515 },
+                { "id": "264", "freeway": "國道1號", "name": "嘉義", "direction": "S", "km": 264.3, "lat": 23.498, "lng": 120.405 },
+                { "id": "327", "freeway": "國道1號", "name": "台南", "direction": "S", "km": 327.4, "lat": 23.003, "lng": 120.242 },
+                { "id": "367", "freeway": "國道1號", "name": "高雄", "direction": "S", "km": 367.0, "lat": 22.628, "lng": 120.332 },
 
                 // 北上 (N)
-                { "id": "367N", "freeway": "國道1號", "name": "高雄", "direction": "N", "km": 367.0, "lat": 22.628, "lng": 120.332, "segmentSpeed": 80 },
-                { "id": "327N", "freeway": "國道1號", "name": "台南", "direction": "N", "km": 327.4, "lat": 23.003, "lng": 120.242, "segmentSpeed": 95 },
-                { "id": "264N", "freeway": "國道1號", "name": "嘉義", "direction": "N", "km": 264.3, "lat": 23.498, "lng": 120.405, "segmentSpeed": 100 },
-                { "id": "198N", "freeway": "國道1號", "name": "彰化", "direction": "N", "km": 198.1, "lat": 24.068, "lng": 120.515, "segmentSpeed": 88 },
-                { "id": "178N", "freeway": "國道1號", "name": "台中", "direction": "N", "km": 178.6, "lat": 24.170, "lng": 120.635, "segmentSpeed": 82 },
-                { "id": "132N", "freeway": "國道1號", "name": "苗栗", "direction": "N", "km": 132.8, "lat": 24.538, "lng": 120.812, "segmentSpeed": 98 },
-                { "id": "110N", "freeway": "國道1號", "name": "頭份", "direction": "N", "km": 110.4, "lat": 24.689, "lng": 120.908, "segmentSpeed": 92 },
-                { "id": "95N", "freeway": "國道1號", "name": "新竹", "direction": "N", "km": 95.5, "lat": 24.798, "lng": 120.997, "segmentSpeed": 85 },
-                { "id": "91N", "freeway": "國道1號", "name": "竹北", "direction": "N", "km": 91.0, "lat": 24.839, "lng": 121.011, "segmentSpeed": 88 },
-                { "id": "83N", "freeway": "國道1號", "name": "湖口", "direction": "N", "km": 83.5, "lat": 24.896, "lng": 121.045, "segmentSpeed": 90 },
-                { "id": "69N", "freeway": "國道1號", "name": "楊梅", "direction": "N", "km": 69.2, "lat": 24.908, "lng": 121.147, "segmentSpeed": 95 },
-                { "id": "62N", "freeway": "國道1號", "name": "平鎮系統", "direction": "N", "km": 62.4, "lat": 24.942, "lng": 121.208, "segmentSpeed": 90 },
-                { "id": "57N", "freeway": "國道1號", "name": "中壢", "direction": "N", "km": 57.0, "lat": 24.981, "lng": 121.242, "segmentSpeed": 88 },
-                { "id": "52N", "freeway": "國道1號", "name": "機場系統", "direction": "N", "km": 52.5, "lat": 25.031, "lng": 121.282, "segmentSpeed": 84 },
-                { "id": "49N", "freeway": "國道1號", "name": "桃園", "direction": "N", "km": 49.1, "lat": 25.034, "lng": 121.298, "segmentSpeed": 63 },
-                { "id": "41N", "freeway": "國道1號", "name": "林口", "direction": "N", "km": 41.5, "lat": 25.068, "lng": 121.364, "segmentSpeed": 84 },
-                { "id": "35N", "freeway": "國道1號", "name": "泰山轉接", "direction": "N", "km": 35.8, "lat": 25.057, "lng": 121.420, "segmentSpeed": 80 },
-                { "id": "34N", "freeway": "國道1號", "name": "高公局", "direction": "N", "km": 34.1, "lat": 25.053, "lng": 121.430, "segmentSpeed": 88 },
-                { "id": "33N", "freeway": "國道1號", "name": "五股", "direction": "N", "km": 33.1, "lat": 25.060, "lng": 121.438, "segmentSpeed": 85 },
-                { "id": "27N", "freeway": "國道1號", "name": "三重", "direction": "N", "km": 27.1, "lat": 25.070, "lng": 121.492, "segmentSpeed": 82 },
-                { "id": "25N", "freeway": "國道1號", "name": "台北", "direction": "N", "km": 25.1, "lat": 25.071, "lng": 121.516, "segmentSpeed": 80 },
-                { "id": "23N", "freeway": "國道1號", "name": "圓山", "direction": "N", "km": 23.2, "lat": 25.071, "lng": 121.531, "segmentSpeed": 75 },
-                { "id": "17N", "freeway": "國道1號", "name": "內湖", "direction": "N", "km": 17.0, "lat": 25.063, "lng": 121.593, "segmentSpeed": 80 },
-                { "id": "15N", "freeway": "國道1號", "name": "東湖", "direction": "N", "km": 15.2, "lat": 25.068, "lng": 121.611, "segmentSpeed": 82 },
-                { "id": "11N", "freeway": "國道1號", "name": "汐止系統", "direction": "N", "km": 11.5, "lat": 25.060, "lng": 121.648, "segmentSpeed": 75 },
-                { "id": "9N", "freeway": "國道1號", "name": "汐止", "direction": "N", "km": 9.6, "lat": 25.071, "lng": 121.660, "segmentSpeed": 80 },
-                { "id": "6N", "freeway": "國道1號", "name": "大華系統", "direction": "N", "km": 6.0, "lat": 25.088, "lng": 121.710, "segmentSpeed": 88 },
-                { "id": "2N", "freeway": "國道1號", "name": "八堵", "direction": "N", "km": 2.6, "lat": 25.108, "lng": 121.729, "segmentSpeed": 85 },
-                { "id": "0N", "freeway": "國道1號", "name": "基隆端", "direction": "N", "km": 0.0, "lat": 25.128, "lng": 121.740, "segmentSpeed": 85 }
+                { "id": "367N", "freeway": "國道1號", "name": "高雄", "direction": "N", "km": 367.0, "lat": 22.628, "lng": 120.332 },
+                { "id": "327N", "freeway": "國道1號", "name": "台南", "direction": "N", "km": 327.4, "lat": 23.003, "lng": 120.242 },
+                { "id": "264N", "freeway": "國道1號", "name": "嘉義", "direction": "N", "km": 264.3, "lat": 23.498, "lng": 120.405 },
+                { "id": "198N", "freeway": "國道1號", "name": "彰化", "direction": "N", "km": 198.1, "lat": 24.068, "lng": 120.515 },
+                { "id": "178N", "freeway": "國道1號", "name": "台中", "direction": "N", "km": 178.6, "lat": 24.170, "lng": 120.635 },
+                { "id": "132N", "freeway": "國道1號", "name": "苗栗", "direction": "N", "km": 132.8, "lat": 24.538, "lng": 120.812 },
+                { "id": "110N", "freeway": "國道1號", "name": "頭份", "direction": "N", "km": 110.4, "lat": 24.689, "lng": 120.908 },
+                { "id": "95N", "freeway": "國道1號", "name": "新竹", "direction": "N", "km": 95.5, "lat": 24.798, "lng": 120.997 },
+                { "id": "91N", "freeway": "國道1號", "name": "竹北", "direction": "N", "km": 91.0, "lat": 24.839, "lng": 121.011 },
+                { "id": "83N", "freeway": "國道1號", "name": "湖口", "direction": "N", "km": 83.5, "lat": 24.896, "lng": 121.045 },
+                { "id": "69N", "freeway": "國道1號", "name": "楊梅", "direction": "N", "km": 69.2, "lat": 24.908, "lng": 121.147 },
+                { "id": "62N", "freeway": "國道1號", "name": "平鎮系統", "direction": "N", "km": 62.4, "lat": 24.942, "lng": 121.208 },
+                { "id": "57N", "freeway": "國道1號", "name": "中壢", "direction": "N", "km": 57.0, "lat": 24.981, "lng": 121.242 },
+                { "id": "52N", "freeway": "國道1號", "name": "機場系統", "direction": "N", "km": 52.5, "lat": 25.031, "lng": 121.282 },
+                { "id": "49N", "freeway": "國道1號", "name": "桃園", "direction": "N", "km": 49.1, "lat": 25.034, "lng": 121.298 },
+                { "id": "41N", "freeway": "國道1號", "name": "林口", "direction": "N", "km": 41.5, "lat": 25.068, "lng": 121.364 },
+                { "id": "35N", "freeway": "國道1號", "name": "泰山轉接", "direction": "N", "km": 35.8, "lat": 25.057, "lng": 121.420 },
+                { "id": "34N", "freeway": "國道1號", "name": "高公局", "direction": "N", "km": 34.1, "lat": 25.053, "lng": 121.430 },
+                { "id": "33N", "freeway": "國道1號", "name": "五股", "direction": "N", "km": 33.1, "lat": 25.060, "lng": 121.438 },
+                { "id": "27N", "freeway": "國道1號", "name": "三重", "direction": "N", "km": 27.1, "lat": 25.070, "lng": 121.492 },
+                { "id": "25N", "freeway": "國道1號", "name": "台北", "direction": "N", "km": 25.1, "lat": 25.071, "lng": 121.516 },
+                { "id": "23N", "freeway": "國道1號", "name": "圓山", "direction": "N", "km": 23.2, "lat": 25.071, "lng": 121.531 },
+                { "id": "17N", "freeway": "國道1號", "name": "內湖", "direction": "N", "km": 17.0, "lat": 25.063, "lng": 121.593 },
+                { "id": "15N", "freeway": "國道1號", "name": "東湖", "direction": "N", "km": 15.2, "lat": 25.068, "lng": 121.611 },
+                { "id": "11N", "freeway": "國道1號", "name": "汐止系統", "direction": "N", "km": 11.5, "lat": 25.060, "lng": 121.648 },
+                { "id": "9N", "freeway": "國道1號", "name": "汐止", "direction": "N", "km": 9.6, "lat": 25.071, "lng": 121.660 },
+                { "id": "6N", "freeway": "國道1號", "name": "大華系統", "direction": "N", "km": 6.0, "lat": 25.088, "lng": 121.710 },
+                { "id": "2N", "freeway": "國道1號", "name": "八堵", "direction": "N", "km": 2.6, "lat": 25.108, "lng": 121.729 },
+                { "id": "0N", "freeway": "國道1號", "name": "基隆端", "direction": "N", "km": 0.0, "lat": 25.128, "lng": 121.740 }
             ]},
             "國3": { name: "國3", express: false, type: "NS", nodes: [
-                { "id": "0", "freeway": "國道3號", "name": "基金", "direction": "S", "km": 0.0, "lat": 25.148, "lng": 121.711, "segmentSpeed": 90 },
-                { "id": "15", "freeway": "國道3號", "name": "南港", "direction": "S", "km": 15.1, "lat": 25.049, "lng": 121.619, "segmentSpeed": 90 },
-                { "id": "31", "freeway": "國道3號", "name": "安坑", "direction": "S", "km": 31.2, "lat": 24.965, "lng": 121.512, "segmentSpeed": 85 },
-                { "id": "46", "freeway": "國道3號", "name": "樹林", "direction": "S", "km": 46.0, "lat": 24.928, "lng": 121.385, "segmentSpeed": 92 },
-                { "id": "54", "freeway": "國道3號", "name": "鶯歌系統", "direction": "S", "km": 54.0, "lat": 24.935, "lng": 121.311, "segmentSpeed": 88 },
-                { "id": "54N", "freeway": "國道3號", "name": "鶯歌系統", "direction": "N", "km": 54.0, "lat": 24.935, "lng": 121.311, "segmentSpeed": 88 },
-                { "id": "46N", "freeway": "國道3號", "name": "樹林", "direction": "N", "km": 46.0, "lat": 24.928, "lng": 121.385, "segmentSpeed": 92 },
-                { "id": "31N", "freeway": "國道3號", "name": "安坑", "direction": "N", "km": 31.2, "lat": 24.965, "lng": 121.512, "segmentSpeed": 85 },
-                { "id": "15N", "freeway": "國道3號", "name": "南港", "direction": "N", "km": 15.1, "lat": 25.049, "lng": 121.619, "segmentSpeed": 90 },
-                { "id": "0N", "freeway": "國道3號", "name": "基金", "direction": "N", "km": 0.0, "lat": 25.148, "lng": 121.711, "segmentSpeed": 90 }
+                { "id": "0", "freeway": "國道3號", "name": "基金", "direction": "S", "km": 0.0, "lat": 25.148, "lng": 121.711 },
+                { "id": "15", "freeway": "國道3號", "name": "南港", "direction": "S", "km": 15.1, "lat": 25.049, "lng": 121.619 },
+                { "id": "31", "freeway": "國道3號", "name": "安坑", "direction": "S", "km": 31.2, "lat": 24.965, "lng": 121.512 },
+                { "id": "46", "freeway": "國道3號", "name": "樹林", "direction": "S", "km": 46.0, "lat": 24.928, "lng": 121.385 },
+                { "id": "54", "freeway": "國道3號", "name": "鶯歌系統", "direction": "S", "km": 54.0, "lat": 24.935, "lng": 121.311 },
+                { "id": "54N", "freeway": "國道3號", "name": "鶯歌系統", "direction": "N", "km": 54.0, "lat": 24.935, "lng": 121.311 },
+                { "id": "46N", "freeway": "國道3號", "name": "樹林", "direction": "N", "km": 46.0, "lat": 24.928, "lng": 121.385 },
+                { "id": "31N", "freeway": "國道3號", "name": "安坑", "direction": "N", "km": 31.2, "lat": 24.965, "lng": 121.512 },
+                { "id": "15N", "freeway": "國道3號", "name": "南港", "direction": "N", "km": 15.1, "lat": 25.049, "lng": 121.619 },
+                { "id": "0N", "freeway": "國道3號", "name": "基金", "direction": "N", "km": 0.0, "lat": 25.148, "lng": 121.711 }
             ]},
             "台64": { name: "台64", express: true, type: "EW", nodes: [
-                { "id": "0", "freeway": "台64線", "name": "八里", "direction": "S", "km": 0.0, "lat": 25.150, "lng": 121.398, "segmentSpeed": 70 },
-                { "id": "14", "freeway": "台64線", "name": "板橋", "direction": "S", "km": 14.2, "lat": 25.028, "lng": 121.470, "segmentSpeed": 65 },
-                { "id": "28", "freeway": "台64線", "name": "新店", "direction": "S", "km": 28.3, "lat": 24.985, "lng": 121.540, "segmentSpeed": 75 },
-                { "id": "28N", "freeway": "台64線", "name": "新店", "direction": "N", "km": 28.3, "lat": 24.985, "lng": 121.540, "segmentSpeed": 75 },
-                { "id": "14N", "freeway": "台64線", "name": "板橋", "direction": "N", "km": 14.2, "lat": 25.028, "lng": 121.470, "segmentSpeed": 65 },
-                { "id": "0N", "freeway": "台64線", "name": "八里", "direction": "N", "km": 0.0, "lat": 25.150, "lng": 121.398, "segmentSpeed": 70 }
+                { "id": "0", "freeway": "台64線", "name": "八里", "direction": "S", "km": 0.0, "lat": 25.150, "lng": 121.398 },
+                { "id": "14", "freeway": "台64線", "name": "板橋", "direction": "S", "km": 14.2, "lat": 25.028, "lng": 121.470 },
+                { "id": "28", "freeway": "台64線", "name": "新店", "direction": "S", "km": 28.3, "lat": 24.985, "lng": 121.540 },
+                { "id": "28N", "freeway": "台64線", "name": "新店", "direction": "N", "km": 28.3, "lat": 24.985, "lng": 121.540 },
+                { "id": "14N", "freeway": "台64線", "name": "板橋", "direction": "N", "km": 14.2, "lat": 25.028, "lng": 121.470 },
+                { "id": "0N", "freeway": "台64線", "name": "八里", "direction": "N", "km": 0.0, "lat": 25.150, "lng": 121.398 }
             ]}
         };
 
@@ -231,35 +240,6 @@
             }
         }
 
-        async function fetchRealtimeTraffic() {
-            try {
-                const tdxRawUrl = "https://tdx.transportdata.tw/api/basic/v2/Road/Highway/Live/Freeway/Freeway1?%24format=JSON";
-                const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(tdxRawUrl);
-                const response = await fetch(proxyUrl, { method: 'GET' });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data && data.FreewayLives) {
-                        data.FreewayLives.forEach(live => {
-                            if (live.CongestionLevel) {
-                                const matchNode = routesDatabase["國1"].nodes.find(n => n.id === String(live.SectionID));
-                                if (matchNode && live.AvgSpeed) {
-                                    matchNode.segmentSpeed = Math.round(live.AvgSpeed);
-                                }
-                            }
-                        });
-                    }
-                    document.getElementById("api-status-text").innerText = "TDX 實時路況已連線";
-                    document.getElementById("api-status-dot").className = "w-2.5 h-2.5 rounded-full bg-emerald-500 mr-2 animate-pulse";
-                }
-            } catch (err) {
-                document.getElementById("api-status-text").innerText = "即時路況運作中";
-                document.getElementById("api-status-dot").className = "w-2.5 h-2.5 rounded-full bg-emerald-400 mr-2";
-            }
-        }
-        fetchRealtimeTraffic();
-        setInterval(fetchRealtimeTraffic, 120000);
-
         function getDistanceKM(lat1, lon1, lat2, lon2) {
             const R = 6371;
             const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -275,7 +255,7 @@
             const rData = routesDatabase[currentRouteKey];
             const badge = document.getElementById("route-badge");
             badge.innerText = rData.name;
-            badge.className = `${rData.express ? 'bg-[#C00000]' : 'bg-[#007A3D]'} text-white font-black px-3.5 py-1.5 rounded-xl text-lg tracking-wider shadow border border-white/80`;
+            badge.className = `${rData.express ? 'bg-[#C00000]' : 'bg-[#007A3D]'} text-white font-black px-3.5 py-1.5 rounded-xl text-lg tracking-wider shadow border-2 border-white`;
             
             const simDirSelect = document.getElementById("sim-dir");
             if (rData.type === "NS") {
@@ -411,9 +391,6 @@
         });
 
         updateRouteBadge("國1");
-        stableDirection = null;
-        pendingDirection = null;
-        pendingDirectionCount = 0;
 
         let lastLat = null;
         let lastLng = null;
@@ -421,8 +398,7 @@
         let pendingDirection = null;
         let pendingDirectionCount = 0;
 
-        // GPS heading 在剛定位、低速或訊號不穩時可能跳動。
-        // 連續收到相同方向數次後才切換 UI，避免第一次定位造成整條 Timeline 重建。
+        // GPS 方向防抖滯後機制（連續 3 次判定一致才切換，防止初始化跳動）
         function getStableDirection(rawHeading) {
             if (rawHeading === null || isNaN(rawHeading)) {
                 return stableDirection || "N";
@@ -482,16 +458,7 @@
             );
         }
 
-        function getSpeedTag(speed) {
-            if (speed >= 80) {
-                return `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded text-xs font-mono font-bold">${speed} km/h</span>`;
-            } else if (speed >= 50) {
-                return `<span class="bg-amber-500/20 text-amber-400 border border-amber-500/30 px-2 py-0.5 rounded text-xs font-mono font-bold">${speed} km/h (車多)</span>`;
-            } else {
-                return `<span class="bg-rose-500/20 text-rose-400 border border-rose-500/30 px-2 py-0.5 rounded text-xs font-mono font-bold animate-pulse">${speed} km/h (壅塞)</span>`;
-            }
-        }
-
+        // 建立全線 DOM 卡片列表
         function buildFullRouteDOM(activeNodes) {
             const track = document.getElementById("scroll-track");
             const isExpress = routesDatabase[currentRouteKey].express;
@@ -500,21 +467,23 @@
             let html = "";
             activeNodes.forEach(item => {
                 html += `
-                    <div id="gate-card-${item.id}" class="gate-row grid grid-cols-[40px_1fr_auto] items-center relative transition-opacity duration-200">
+                    <div id="gate-card-${item.id}" class="gate-row grid grid-cols-[40px_1fr_auto] items-center relative transition-all duration-300">
+                        <!-- Col 1: 圓點標點 -->
                         <div class="relative h-full flex items-center justify-center">
-                            <div id="gate-dot-${item.id}" class="w-5 h-5 rounded-full z-10 bg-slate-600"></div>
+                            <div id="gate-dot-${item.id}" class="w-5 h-5 rounded-full z-10 bg-slate-600 transition-all duration-300"></div>
                         </div>
 
-                        <div class="flex items-center space-x-2 overflow-hidden pl-1">
-                            <div class="${signClass} text-white px-3 py-1.5 rounded-xl font-bold flex items-center space-x-2 shadow-lg">
+                        <!-- Col 2: 路牌標籤 (保留 pl-3 離隙避免壓點) -->
+                        <div class="flex items-center pl-3 overflow-visible">
+                            <div id="gate-sign-${item.id}" class="${signClass} text-white px-3 py-1.5 rounded-xl font-bold flex items-center space-x-2 shadow-lg transition-all duration-300">
                                 <span class="text-sm md:text-base font-black border-r border-white/40 pr-2 font-mono">${item.id.replace('N','')}</span>
                                 <span class="text-base md:text-lg font-extrabold tracking-wider whitespace-nowrap break-keep">${item.name}</span>
                             </div>
-                            ${getSpeedTag(item.segmentSpeed || 85)}
                         </div>
 
+                        <!-- Col 3: 距離與預估時間 -->
                         <div class="text-right pl-2 shrink-0">
-                            <div id="gate-dist-${item.id}" class="text-xl md:text-2xl font-black text-slate-200 font-mono">-- <span class="text-xs text-slate-400">km</span></div>
+                            <div id="gate-dist-${item.id}" class="text-xl md:text-2xl font-black text-slate-200 font-mono transition-all duration-300">-- <span class="text-xs text-slate-400">km</span></div>
                             <div id="gate-time-${item.id}" class="text-xs font-bold text-slate-400">--</div>
                         </div>
                     </div>
@@ -523,7 +492,7 @@
             track.innerHTML = html;
         }
 
-        // 大比例高清無縫連續滾動引擎
+        // 大比例高清無縫連續滾動引擎 + 下個出口（Next Exit）專屬獨立光暈黃框高亮
         function renderTimelineUI(currentKM, activeData, direction) {
             if (lastBuiltRouteKey !== currentRouteKey || lastBuiltDirection !== direction) {
                 const sortedNodes = [...activeData].sort((a, b) => {
@@ -557,15 +526,16 @@
             const nextIndex = sortedNodes.findIndex(n => n.id === nextExit.id);
             const totalNodes = sortedNodes.length;
 
-            // 62px 放大卡片幾何位移算式
+            // 72px 放大卡片幾何位移算式
             const cardHeight = CARD_HEIGHT_PX;
             const continuousOffset = (totalNodes - 1 - nextIndex) + progressRatio;
             const targetY = (continuousOffset * cardHeight) + LINE_OFFSET_PX;
 
-            const VISIBLE_WINDOW_SIZE = 6; // 可視視窗保持顯示約 5~6 個出口
+            const VISIBLE_WINDOW_SIZE = 8; // 可視視窗保持顯示約 8 個出口
 
             sortedNodes.forEach((item, index) => {
                 const cardEl = document.getElementById(`gate-card-${item.id}`);
+                const signEl = document.getElementById(`gate-sign-${item.id}`);
                 const distEl = document.getElementById(`gate-dist-${item.id}`);
                 const timeEl = document.getElementById(`gate-time-${item.id}`);
                 const dotEl = document.getElementById(`gate-dot-${item.id}`);
@@ -582,25 +552,34 @@
                 const distanceIndex = nextIndex - index;
 
                 if (isNext) {
-                    dotEl.className = "w-5 h-5 rounded-full z-10 bg-amber-400 ring-4 ring-amber-400/30";
-                    distEl.className = "text-xl md:text-2xl font-black text-amber-400 font-mono";
+                    // 🔥【即將到達閘道（Next Exit）獨立黃色光暈高亮，絕不擠壓路牌體積與黃圓點】
+                    dotEl.className = "w-6 h-6 rounded-full z-20 bg-amber-400 ring-4 ring-amber-400/40 shadow-lg";
+                    signEl.className = `${routesDatabase[currentRouteKey].express ? 'express-sign' : 'highway-sign'} text-white px-3.5 py-1.5 rounded-xl font-bold flex items-center space-x-2 ring-2 ring-amber-400 ring-offset-2 ring-offset-slate-900 shadow-[0_0_20px_rgba(251,191,36,0.6)]`;
+                    distEl.className = "text-2xl md:text-3xl font-black text-amber-400 font-mono";
                     cardEl.style.opacity = "1";
-                } else if (distanceIndex === -1) {
-                    // 過站卡片 Fade-Out
-                    dotEl.className = "w-5 h-5 rounded-full z-10 bg-slate-700";
-                    distEl.className = "text-xl md:text-2xl font-black text-slate-500 font-mono";
-                    cardEl.style.opacity = `${(1.0 - progressRatio) * 0.4}`;
-                } else if (distanceIndex === (VISIBLE_WINDOW_SIZE - 2)) {
-                    // 新進場卡片 Fade-In
-                    dotEl.className = "w-5 h-5 rounded-full z-10 bg-slate-600";
-                    distEl.className = "text-xl md:text-2xl font-black text-slate-200 font-mono";
-                    cardEl.style.opacity = `${progressRatio}`;
-                } else if (distanceIndex > 0 && distanceIndex < (VISIBLE_WINDOW_SIZE - 2)) {
-                    dotEl.className = "w-5 h-5 rounded-full z-10 bg-slate-600";
-                    distEl.className = "text-xl md:text-2xl font-black text-slate-200 font-mono";
-                    cardEl.style.opacity = "1";
+                    cardEl.style.zIndex = "20";
                 } else {
-                    cardEl.style.opacity = "0";
+                    // 一般預設樣式恢復
+                    signEl.className = `${routesDatabase[currentRouteKey].express ? 'express-sign' : 'highway-sign'} text-white px-3 py-1.5 rounded-xl font-bold flex items-center space-x-2 shadow-lg ring-0`;
+                    cardEl.style.zIndex = "10";
+
+                    if (distanceIndex === -1) {
+                        // 過站卡片 Fade-Out
+                        dotEl.className = "w-5 h-5 rounded-full z-10 bg-slate-700";
+                        distEl.className = "text-xl md:text-2xl font-black text-slate-500 font-mono";
+                        cardEl.style.opacity = `${(1.0 - progressRatio) * 0.4}`;
+                    } else if (distanceIndex === (VISIBLE_WINDOW_SIZE - 2)) {
+                        // 新進場卡片 Fade-In
+                        dotEl.className = "w-5 h-5 rounded-full z-10 bg-slate-600";
+                        distEl.className = "text-xl md:text-2xl font-black text-slate-200 font-mono";
+                        cardEl.style.opacity = `${progressRatio}`;
+                    } else if (distanceIndex > 0 && distanceIndex < (VISIBLE_WINDOW_SIZE - 2)) {
+                        dotEl.className = "w-5 h-5 rounded-full z-10 bg-slate-600";
+                        distEl.className = "text-xl md:text-2xl font-black text-slate-200 font-mono";
+                        cardEl.style.opacity = "1";
+                    } else {
+                        cardEl.style.opacity = "0";
+                    }
                 }
             });
 
